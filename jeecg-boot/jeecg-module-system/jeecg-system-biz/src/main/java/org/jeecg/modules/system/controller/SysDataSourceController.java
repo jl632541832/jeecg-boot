@@ -7,8 +7,8 @@ import com.baomidou.dynamic.datasource.DynamicRoutingDataSource;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -23,6 +23,7 @@ import org.jeecg.common.util.dynamic.db.DataSourceCachePool;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.common.util.security.JdbcSecurityUtil;
 import org.jeecg.config.mybatis.MybatisPlusSaasConfig;
+import org.jeecg.config.sign.annotation.SignatureCheck;
 import org.jeecg.modules.system.entity.SysDataSource;
 import org.jeecg.modules.system.service.ISysDataSourceService;
 import org.jeecg.modules.system.util.SecurityUtil;
@@ -30,8 +31,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 import java.util.Arrays;
 import java.util.List;
@@ -82,6 +83,14 @@ public class SysDataSourceController extends JeecgController<SysDataSource, ISys
         return Result.ok(pageList);
     }
 
+    /**
+     * 下拉选项数据 (online报表使用)
+     * @param sysDataSource
+     * @param req
+     * @return
+     */
+    @SignatureCheck
+    @RequiresPermissions("online:report:add")
     @GetMapping(value = "/options")
     public Result<?> queryOptions(SysDataSource sysDataSource, HttpServletRequest req) {
         //------------------------------------------------------------------------------------------------
@@ -114,14 +123,13 @@ public class SysDataSourceController extends JeecgController<SysDataSource, ISys
     @Operation(summary = "多数据源管理-添加")
     @PostMapping(value = "/add")
     public Result<?> add(@RequestBody SysDataSource sysDataSource) {
-        //update-begin-author:taoyan date:2022-8-10 for: jdbc连接地址漏洞问题
+        // 代码逻辑说明: jdbc连接地址漏洞问题
         try {
             JdbcSecurityUtil.validate(sysDataSource.getDbUrl());
         }catch (JeecgBootException e){
             log.error(e.toString());
             return Result.error("操作失败：" + e.getMessage());
         }
-        //update-end-author:taoyan date:2022-8-10 for: jdbc连接地址漏洞问题
         return sysDataSourceService.saveDataSource(sysDataSource);
     }
 
@@ -135,14 +143,13 @@ public class SysDataSourceController extends JeecgController<SysDataSource, ISys
     @Operation(summary = "多数据源管理-编辑")
     @RequestMapping(value = "/edit", method ={RequestMethod.PUT, RequestMethod.POST})
     public Result<?> edit(@RequestBody SysDataSource sysDataSource) {
-        //update-begin-author:taoyan date:2022-8-10 for: jdbc连接地址漏洞问题
+        // 代码逻辑说明: jdbc连接地址漏洞问题
         try {
             JdbcSecurityUtil.validate(sysDataSource.getDbUrl());
         } catch (JeecgBootException e) {
             log.error(e.toString());
             return Result.error("操作失败：" + e.getMessage());
         }
-        //update-end-author:taoyan date:2022-8-10 for: jdbc连接地址漏洞问题
         return sysDataSourceService.editDataSource(sysDataSource);
     }
 

@@ -10,9 +10,11 @@
     allowClear
     :getPopupContainer="getParentContainer"
   >
-    <a-select-option v-for="(item, index) in dictOptions" :key="index" :getPopupContainer="getParentContainer" :value="item.value">
-      <span :class="[useDicColor && item.color ? 'colorText' : '']" :style="{ backgroundColor: `${useDicColor && item.color}` }">{{ item.text || item.label }}</span>
-    </a-select-option>
+    <template v-for="item of getOptions" :key="item.key">
+      <a-select-option :value="item.value" :getPopupContainer="getParentContainer">
+        <span :class="item.class" :style="item.style">{{ item.text }}</span>
+      </a-select-option>
+    </template>
   </a-select>
 </template>
 <script lang="ts">
@@ -21,10 +23,8 @@
   import { propTypes } from '/@/utils/propTypes';
   import { useAttrs } from '/@/hooks/core/useAttrs';
   import { getDictItems } from '/@/api/common/api';
-  import { useMessage } from '/@/hooks/web/useMessage';
   import { setPopContainer } from '/@/utils';
 
-  const { createMessage, createErrorModal } = useMessage();
   export default defineComponent({
     name: 'JSelectMultiple',
     components: {},
@@ -83,6 +83,26 @@
       const attrs = useAttrs();
       const [state, , , formItemContext] = useRuleFormItem(props, 'value', 'change', emitData);
 
+      // 处理下拉选项
+      const getOptions = computed(() => {
+        if (!Array.isArray(dictOptions.value)) {
+          return [];
+        }
+        return dictOptions.value.map((item, index) => {
+          const {useDicColor} = props;
+          const text = item.text || item.label || item.label || '';
+          const key = item.value + '_' + text + '_' + index;
+          return {
+            key: key,
+            text: text,
+            value: item.value,
+            color: item.color,
+            class: [useDicColor && item.color ? 'colorText' : ''],
+            style: {backgroundColor: `${useDicColor && item.color}`},
+          };
+        });
+      });
+
       onMounted(() => {
         if (props.dictCode) {
           loadDictOptions();
@@ -130,32 +150,29 @@
           emit('input', selectedValue.join(props.spliter));
           emit('update:value', selectedValue.join(props.spliter));
         }
-        // update-begin--author:liaozhiyang---date:20240429---for：【QQYUN-9110】组件有值校验没消失
+        // 代码逻辑说明: 【QQYUN-9110】组件有值校验没消失
         nextTick(() => {
           formItemContext?.onFieldChange();
         });
-        // update-end--author:liaozhiyang---date:20240429---for：【QQYUN-9110】组件有值校验没消失
       }
 
       function getParentContainer(node) {
         if (!props.popContainer) {
           return node?.parentNode;
         } else {
-          // update-begin--author:liaozhiyang---date:20240517---for：【QQYUN-9339】有多个modal弹窗内都有下拉字典多选和下拉搜索组件时，打开另一个modal时组件的options不展示
+          // 代码逻辑说明: 【QQYUN-9339】有多个modal弹窗内都有下拉字典多选和下拉搜索组件时，打开另一个modal时组件的options不展示
           return setPopContainer(node, props.popContainer);
-          // update-end--author:liaozhiyang---date:20240517---for：【QQYUN-9339】有多个modal弹窗内都有下拉字典多选和下拉搜索组件时，打开另一个modal时组件的options不展示
         }
       }
 
       // 根据字典code查询字典项
       function loadDictOptions() {
-        //update-begin-author:taoyan date:2022-6-21 for: 字典数据请求前将参数编码处理，但是不能直接编码，因为可能之前已经编码过了
+        // 代码逻辑说明: 字典数据请求前将参数编码处理，但是不能直接编码，因为可能之前已经编码过了
         let temp = props.dictCode || '';
         if (temp.indexOf(',') > 0 && temp.indexOf(' ') > 0) {
           // 编码后 是不包含空格的
           temp = encodeURI(temp);
         }
-        //update-end-author:taoyan date:2022-6-21 for: 字典数据请求前将参数编码处理，但是不能直接编码，因为可能之前已经编码过了
         getDictItems(temp).then((res) => {
           if (res) {
             dictOptions.value = res.map((item) => ({ value: item.value, label: item.text, color:item.color }));
@@ -167,15 +184,15 @@
         });
       }
 
-      //update-begin-author:taoyan date:2022-5-31 for: VUEN-1145 下拉多选，搜索时，查不到数据
+      // 代码逻辑说明: VUEN-1145 下拉多选，搜索时，查不到数据
       function filterOption(input, option) {
         return option.children()[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0;
       }
-      //update-end-author:taoyan date:2022-5-31 for: VUEN-1145 下拉多选，搜索时，查不到数据
 
       return {
         state,
         attrs,
+        getOptions,
         dictOptions,
         onChange,
         arrayValue,

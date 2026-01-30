@@ -39,22 +39,28 @@
         </a-card>
       </a-col>
       <a-col v-if="knowledgeList && knowledgeList.length>0" :xxl="4" :xl="6" :lg="6" :md="6" :sm="12" :xs="24" v-for="item in knowledgeList">
-        <a-card class="knowledge-card pointer" @click="handleDocClick(item.id)">
+        <a-card class="knowledge-card pointer" @click="handleDocClick(item.id, item.type)">
           <div class="knowledge-header">
             <div class="flex">
               <img class="header-img" src="./icon/knowledge.png" />
               <div class="header-text">
                 <span class="header-text-top header-name ellipsis" :title="item.name"> {{ item.name }} </span>
-                <span class="header-text-top"> 创建者：{{ item.createBy }} </span>
+                <span class="header-text-top"> 创建者：{{ item.createBy_dictText || item.createBy }} </span>
               </div>
             </div>
           </div>
           <div class="mt-10 text-desc">
             <span>{{ item.descr || '暂无描述' }}</span>
           </div>
-          <div class="knowledge-footer">
-            <Icon class="knowledge-footer-icon" icon="ant-design:deployment-unit-outlined" size="14"></Icon>
-            <span>{{ item.embedId_dictText }}</span>
+          <div class="knowledge-footer flex" style="justify-content: space-between">
+            <div style="width: calc(100% - 60px)" class="ellipsis">
+              <Icon class="knowledge-footer-icon" icon="ant-design:deployment-unit-outlined" size="14"></Icon>
+              <span :title="item.embedId_dictText">{{ item.embedId_dictText }}</span>
+            </div>
+            <div>
+              <a-tag v-if="item.type == 'memory'" color="orange" class="tag-style">记忆库</a-tag>
+              <a-tag v-else color="blue" class="tag-style">知识库</a-tag>
+            </div>
           </div>
           <div class="knowledge-btn">
             <a-dropdown placement="bottomRight" :trigger="['click']" :getPopupContainer="(node) => node.parentNode">
@@ -75,6 +81,10 @@
                     <Icon class="pointer" icon="ant-design:delete-outlined" size="16"></Icon>
                     删除
                   </a-menu-item>
+                  <a-menu-item key="clear" @click.prevent.stop="onDeleteAllDoc(item)">
+                    <Icon icon="ant-design:delete-outlined" size="16"></Icon>
+                    清空文档
+                  </a-menu-item>
                 </a-menu>
               </template>
             </a-dropdown>
@@ -93,6 +103,7 @@
       @change="handlePageChange"
       class="list-footer"
       size="small"
+      :show-total="() => `共${total}条` "
     />
     <!--添加知识库弹窗-->
     <KnowledgeBaseModal @register="registerModal" @success="reload"></KnowledgeBaseModal>
@@ -105,6 +116,7 @@
   import { reactive, ref } from 'vue';
   import { useModal } from '/@/components/Modal';
   import { deleteModel, list, rebuild } from './AiKnowledgeBase.api';
+  import { doDeleteAllDoc } from "./AiKnowledgeBase.api.util";
   import { Pagination } from 'ant-design-vue';
   import JInput from '@/components/Form/src/jeecg/components/JInput.vue';
   import KnowledgeBaseModal from './components/AiKnowledgeBaseModal.vue';
@@ -221,13 +233,26 @@
        * @param item
        */
       async function handleDelete(item) {
+        if(knowledgeList.value.length == 1 && pageNo.value > 1) {
+          pageNo.value = pageNo.value - 1;
+        }
         await deleteModel({ id: item.id, name: item.name }, reload);
+      }
+
+      /**
+       * 清空文档
+       * @param item
+       */
+      async function onDeleteAllDoc(item) {
+        pageNo.value = 1;
+        return doDeleteAllDoc(item.id, reload);
       }
 
       /**
        * 查询
        */
       function searchQuery() {
+        pageNo.value = 1;
         reload();
       }
 
@@ -237,6 +262,7 @@
       function searchReset() {
         formRef.value.resetFields();
         queryParam.createBy = '';
+        pageNo.value = 1;
         //刷新数据
         reload();
       }
@@ -245,9 +271,10 @@
        * 参数配置点击事件
        *
        * @param id
+       * @param type
        */
-      function handleDocClick(id) {
-        openDocModal(true, { id });
+      function handleDocClick(id, type) {
+        openDocModal(true, { id, type });
       }
 
       /**
@@ -257,7 +284,7 @@
       async function handleVectorization(id) {
         rebuild({ knowIds: id }).then((res) =>{
           if(res.success){
-            createMessage.success("向量化成功！");
+            createMessage.success("操作成功，开始异步重建知识库，请稍后查看！");
             reload();
           }else{
             createMessage.warning("向量化失败！");
@@ -279,6 +306,7 @@
         total,
         handlePageChange,
         handleDelete,
+        onDeleteAllDoc,
         searchQuery,
         searchReset,
         queryParam,
@@ -389,7 +417,7 @@
     margin-bottom: 20px;
     background: #fcfcfd;
     border: 1px solid #f0f0f0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px #e6e6e6;
     transition: all 0.3s ease;
     border-radius: 10px;
     display: inline-flex;
@@ -414,7 +442,7 @@
   }
 
   .add-knowledge-card:hover {
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 6px 12px #d0d3d8;
   }
 
   .knowledge-card {
@@ -424,11 +452,11 @@
     border-radius: 10px;
     background: #fcfcfd;
     border: 1px solid #f0f0f0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px #e6e6e6;
     transition: all 0.3s ease;
   }
   .knowledge-card:hover {
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 6px 12px #d0d3d8;
     .knowledge-btn {
       display: block;
     }
@@ -459,7 +487,7 @@
   }
   .model-icon:hover{
     color: #000000;
-    background-color: rgba(0,0,0,0.05);
+    background-color: #e9ecf2;
     border: none;
   }
   .ant-dropdown-link{
@@ -475,5 +503,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .tag-style{
+    margin-right: 5px;
+    height: 20px;
+    line-height: 18px;
   }
 </style>

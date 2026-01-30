@@ -6,13 +6,20 @@
           <div style="display: flex">
             <img :src="getImage()" class="header-img"/>
             <div class="header-name">{{formState.name}}</div>
-            <a-tooltip title="编辑">
+            <a-tooltip v-if="!isRelease" title="编辑">
               <Icon icon="ant-design:edit-outlined" style="margin-left: 4px;cursor: pointer" color="#354052" size="20" @click="handleEdit"></Icon>
             </a-tooltip>
           </div>
-          <div>应用编排</div>
+          <div>
+            应用编排
+            <a-tooltip title="AI应用文档">
+              <a style="color: unset" href="https://help.jeecg.com/aigc/guide/app" target="_blank">
+                <Icon style="position:relative;left:2px;top:1px" icon="ant-design:question-circle-outlined"></Icon>
+              </a>
+            </a-tooltip>
+          </div>
           <div style="display: flex">
-            <a-button @click="handleOk" style="margin-right: 30px" type="primary">保存</a-button>
+            <a-button v-if="!isRelease" @click="handleOk" style="margin-right: 30px" type="primary">保存</a-button>
           </div>
         </div>
       </template>
@@ -35,7 +42,7 @@
                       <template #label>
                         <div style="display: flex;justify-content: space-between;width: 100%;">
                           <span>关联流程</span>
-                          <span @click="handleAddFlowClick" class="knowledge-txt">
+                          <span v-if="!isRelease" @click="handleAddFlowClick('chatFLow')" class="knowledge-txt">
                              <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
                           </span>
                         </div>
@@ -49,14 +56,14 @@
                               <div class="flex text-status" v-if="flowData.metadata && flowData.metadata.length>0">
                                 <span class="tag-input">输入</span>
                                 <div v-for="(metaItem, index) in flowData.metadata">
-                                  <a-tag color="rgba(87,104,161,0.08)" class="tags-meadata">
+                                  <a-tag color="#f2f3f8" class="tags-meadata">
                                     <span v-if="index<5" class="tag-text">{{ metaItem.field }}</span>
                                   </a-tag>
                                 </div>
                               </div>
                             </div>
                           </div>
-                          <Icon @click="handleDeleteFlow" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
+                          <Icon v-if="!isRelease" @click="handleDeleteFlow('chatFLow')" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
                         </div>
                       </a-card>
                       <div v-else class="data-empty-text">
@@ -71,15 +78,22 @@
                       <template #label>
                         <div class="prompt-title-padding item-title space-between">
                           <span>提示词</span>
-                          <a-button size="middle" @click="generatedPrompt" ghost>
-                            <span style="align-items: center;display:flex">
-                              <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.9839 1.85931C19.1612 1.38023 19.8388 1.38023 20.0161 1.85931L20.5021 3.17278C20.5578 3.3234 20.6766 3.44216 20.8272 3.49789L22.1407 3.98392C22.6198 4.1612 22.6198 4.8388 22.1407 5.01608L20.8272 5.50211C20.6766 5.55784 20.5578 5.6766 20.5021 5.82722L20.0161 7.14069C19.8388 7.61977 19.1612 7.61977 18.9839 7.14069L18.4979 5.82722C18.4422 5.6766 18.3234 5.55784 18.1728 5.50211L16.8593 5.01608C16.3802 4.8388 16.3802 4.1612 16.8593 3.98392L18.1728 3.49789C18.3234 3.44216 18.4422 3.3234 18.4979 3.17278L18.9839 1.85931zM13.5482 4.07793C13.0164 2.64069 10.9836 2.64069 10.4518 4.07793L8.99368 8.01834C8.82648 8.47021 8.47021 8.82648 8.01834 8.99368L4.07793 10.4518C2.64069 10.9836 2.64069 13.0164 4.07793 13.5482L8.01834 15.0063C8.47021 15.1735 8.82648 15.5298 8.99368 15.9817L10.4518 19.9221C10.9836 21.3593 13.0164 21.3593 13.5482 19.9221L15.0063 15.9817C15.1735 15.5298 15.5298 15.1735 15.9817 15.0063L19.9221 13.5482C21.3593 13.0164 21.3593 10.9836 19.9221 10.4518L15.9817 8.99368C15.5298 8.82648 15.1735 8.47021 15.0063 8.01834L13.5482 4.07793zM5.01608 16.8593C4.8388 16.3802 4.1612 16.3802 3.98392 16.8593L3.49789 18.1728C3.44216 18.3234 3.3234 18.4422 3.17278 18.4979L1.85931 18.9839C1.38023 19.1612 1.38023 19.8388 1.85931 20.0161L3.17278 20.5021C3.3234 20.5578 3.44216 20.6766 3.49789 20.8272L3.98392 22.1407C4.1612 22.6198 4.8388 22.6198 5.01608 22.1407L5.50211 20.8272C5.55784 20.6766 5.6766 20.5578 5.82722 20.5021L7.14069 20.0161C7.61977 19.8388 7.61977 19.1612 7.14069 18.9839L5.82722 18.4979C5.6766 18.4422 5.55784 18.3234 5.50211 18.1728L5.01608 16.8593z"></path></svg>
-                              <span style="margin-left: 4px">生成</span>
-                            </span>
-                          </a-button>
+                          <div style="align-items: center;display:flex;justify-content: center" v-if="!isRelease">
+                            <a-button size="middle" ghost>
+                              <span style="align-items: center;display:flex"  @click="openPromptApps">
+                                <Icon icon="ant-design:database-outlined"></Icon>提示词库
+                              </span>
+                            </a-button>
+                            <a-button  size="middle" ghost>
+                              <span style="align-items: center;display:flex"  @click="generatedPrompt">
+                                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.9839 1.85931C19.1612 1.38023 19.8388 1.38023 20.0161 1.85931L20.5021 3.17278C20.5578 3.3234 20.6766 3.44216 20.8272 3.49789L22.1407 3.98392C22.6198 4.1612 22.6198 4.8388 22.1407 5.01608L20.8272 5.50211C20.6766 5.55784 20.5578 5.6766 20.5021 5.82722L20.0161 7.14069C19.8388 7.61977 19.1612 7.61977 18.9839 7.14069L18.4979 5.82722C18.4422 5.6766 18.3234 5.55784 18.1728 5.50211L16.8593 5.01608C16.3802 4.8388 16.3802 4.1612 16.8593 3.98392L18.1728 3.49789C18.3234 3.44216 18.4422 3.3234 18.4979 3.17278L18.9839 1.85931zM13.5482 4.07793C13.0164 2.64069 10.9836 2.64069 10.4518 4.07793L8.99368 8.01834C8.82648 8.47021 8.47021 8.82648 8.01834 8.99368L4.07793 10.4518C2.64069 10.9836 2.64069 13.0164 4.07793 13.5482L8.01834 15.0063C8.47021 15.1735 8.82648 15.5298 8.99368 15.9817L10.4518 19.9221C10.9836 21.3593 13.0164 21.3593 13.5482 19.9221L15.0063 15.9817C15.1735 15.5298 15.5298 15.1735 15.9817 15.0063L19.9221 13.5482C21.3593 13.0164 21.3593 10.9836 19.9221 10.4518L15.9817 8.99368C15.5298 8.82648 15.1735 8.47021 15.0063 8.01834L13.5482 4.07793zM5.01608 16.8593C4.8388 16.3802 4.1612 16.3802 3.98392 16.8593L3.49789 18.1728C3.44216 18.3234 3.3234 18.4422 3.17278 18.4979L1.85931 18.9839C1.38023 19.1612 1.38023 19.8388 1.85931 20.0161L3.17278 20.5021C3.3234 20.5578 3.44216 20.6766 3.49789 20.8272L3.98392 22.1407C4.1612 22.6198 4.8388 22.6198 5.01608 22.1407L5.50211 20.8272C5.55784 20.6766 5.6766 20.5578 5.82722 20.5021L7.14069 20.0161C7.61977 19.8388 7.61977 19.1612 7.14069 18.9839L5.82722 18.4979C5.6766 18.4422 5.55784 18.3234 5.50211 18.1728L5.01608 16.8593z"/></svg>
+                                <span style="margin-left: 4px">生成</span>
+                              </span>
+                            </a-button>
+                          </div>
                         </div>
                       </template>
-                      <a-textarea :rows="8" v-model:value="formState.prompt" placeholder="请输入提示词"/>
+                      <a-textarea :disabled="isRelease" :rows="8" v-model:value="formState.prompt" placeholder="请输入提示词"/>
                     </a-form-item>
                   </div>
                 </a-col>
@@ -90,7 +104,7 @@
                         <div class="prompt-title-padding item-title">开场白</div>
                       </template>
                       <div class="prologue-chunk-edit">
-                        <j-markdown-editor :height="166" v-model:value="formState.prologue" @change="prologueTextAreaBlur" :preview="{ mode: 'view', action: [] }"></j-markdown-editor>
+                        <j-markdown-editor :height="166" v-model:value="formState.prologue" :disabled="isRelease" @change="prologueTextAreaBlur" :preview="{ mode: 'view', action: [] }"></j-markdown-editor>
                       </div>
                     </a-form-item>
                   </div>
@@ -101,7 +115,7 @@
                       <template #label>
                         <div class="prompt-title-padding item-title space-between">
                           <div class="item-title">预设问题</div>
-                          <a-tooltip title="添加预设问题">
+                          <a-tooltip v-if="!isRelease" title="添加预设问题">
                             <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 16px;cursor: pointer" @click="presetQuestionAddClick"></Icon>
                           </a-tooltip>
                         </div>
@@ -110,9 +124,9 @@
                         <draggable :disabled="disabledDrag" item-key="key" v-model="presetQuestionList" @end="presetQuestionEnd">
                           <template #item="{ element:item }">
                             <div style="display: flex;width: 100%;margin-top: 10px">
-                              <Icon icon="ant-design:holder-outlined" size="20"></Icon>
-                              <a-input placeholder="输入预设问题" v-model:value="item.descr" style="margin-left: 10px;" @blur="onBlur(item)" @focus="onFocus(item)" @change="questionChange"></a-input>
-                              <Icon style="cursor: pointer;margin-left: 10px" icon="ant-design:delete-outlined" @click="deleteQuestionClick(item.key)"></Icon>
+                              <Icon v-if="!isRelease" icon="ant-design:holder-outlined" size="20"></Icon>
+                              <a-input :disabled="isRelease" placeholder="输入预设问题" v-model:value="item.descr" style="margin-left: 10px;" @blur="onBlur(item)" @focus="onFocus(item)" @change="questionChange"></a-input>
+                              <Icon v-if="!isRelease" style="cursor: pointer;margin-left: 10px" icon="ant-design:delete-outlined" @click="deleteQuestionClick(item.key)"></Icon>
                             </div>
                           </template>
                         </draggable>
@@ -129,7 +143,7 @@
                       <template #label>
                         <div class="prompt-title-padding item-title space-between">
                           <div class="item-title">快捷指令</div>
-                          <a-tooltip title="添加快捷指令">
+                          <a-tooltip v-if="!isRelease" title="添加快捷指令">
                             <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 16px;cursor: pointer" @click="quickCommandAddClick"></Icon>
                           </a-tooltip>
                         </div>
@@ -140,10 +154,10 @@
                             <div class="quick-command">
                               <div style="display: flex;align-items: center">
                                 <Icon v-if="item.icon" :icon="item.icon" size="20"></Icon>
-                                <svg v-else width="14px" height="14px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.9839 1.85931C19.1612 1.38023 19.8388 1.38023 20.0161 1.85931L20.5021 3.17278C20.5578 3.3234 20.6766 3.44216 20.8272 3.49789L22.1407 3.98392C22.6198 4.1612 22.6198 4.8388 22.1407 5.01608L20.8272 5.50211C20.6766 5.55784 20.5578 5.6766 20.5021 5.82722L20.0161 7.14069C19.8388 7.61977 19.1612 7.61977 18.9839 7.14069L18.4979 5.82722C18.4422 5.6766 18.3234 5.55784 18.1728 5.50211L16.8593 5.01608C16.3802 4.8388 16.3802 4.1612 16.8593 3.98392L18.1728 3.49789C18.3234 3.44216 18.4422 3.3234 18.4979 3.17278L18.9839 1.85931zM13.5482 4.07793C13.0164 2.64069 10.9836 2.64069 10.4518 4.07793L8.99368 8.01834C8.82648 8.47021 8.47021 8.82648 8.01834 8.99368L4.07793 10.4518C2.64069 10.9836 2.64069 13.0164 4.07793 13.5482L8.01834 15.0063C8.47021 15.1735 8.82648 15.5298 8.99368 15.9817L10.4518 19.9221C10.9836 21.3593 13.0164 21.3593 13.5482 19.9221L15.0063 15.9817C15.1735 15.5298 15.5298 15.1735 15.9817 15.0063L19.9221 13.5482C21.3593 13.0164 21.3593 10.9836 19.9221 10.4518L15.9817 8.99368C15.5298 8.82648 15.1735 8.47021 15.0063 8.01834L13.5482 4.07793zM5.01608 16.8593C4.8388 16.3802 4.1612 16.3802 3.98392 16.8593L3.49789 18.1728C3.44216 18.3234 3.3234 18.4422 3.17278 18.4979L1.85931 18.9839C1.38023 19.1612 1.38023 19.8388 1.85931 20.0161L3.17278 20.5021C3.3234 20.5578 3.44216 20.6766 3.49789 20.8272L3.98392 22.1407C4.1612 22.6198 4.8388 22.6198 5.01608 22.1407L5.50211 20.8272C5.55784 20.6766 5.6766 20.5578 5.82722 20.5021L7.14069 20.0161C7.61977 19.8388 7.61977 19.1612 7.14069 18.9839L5.82722 18.4979C5.6766 18.4422 5.55784 18.3234 5.50211 18.1728L5.01608 16.8593z"></path></svg>
+                                <svg v-else width="14px" height="14px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.9839 1.85931C19.1612 1.38023 19.8388 1.38023 20.0161 1.85931L20.5021 3.17278C20.5578 3.3234 20.6766 3.44216 20.8272 3.49789L22.1407 3.98392C22.6198 4.1612 22.6198 4.8388 22.1407 5.01608L20.8272 5.50211C20.6766 5.55784 20.5578 5.6766 20.5021 5.82722L20.0161 7.14069C19.8388 7.61977 19.1612 7.61977 18.9839 7.14069L18.4979 5.82722C18.4422 5.6766 18.3234 5.55784 18.1728 5.50211L16.8593 5.01608C16.3802 4.8388 16.3802 4.1612 16.8593 3.98392L18.1728 3.49789C18.3234 3.44216 18.4422 3.3234 18.4979 3.17278L18.9839 1.85931zM13.5482 4.07793C13.0164 2.64069 10.9836 2.64069 10.4518 4.07793L8.99368 8.01834C8.82648 8.47021 8.47021 8.82648 8.01834 8.99368L4.07793 10.4518C2.64069 10.9836 2.64069 13.0164 4.07793 13.5482L8.01834 15.0063C8.47021 15.1735 8.82648 15.5298 8.99368 15.9817L10.4518 19.9221C10.9836 21.3593 13.0164 21.3593 13.5482 19.9221L15.0063 15.9817C15.1735 15.5298 15.5298 15.1735 15.9817 15.0063L19.9221 13.5482C21.3593 13.0164 21.3593 10.9836 19.9221 10.4518L15.9817 8.99368C15.5298 8.82648 15.1735 8.47021 15.0063 8.01834L13.5482 4.07793zM5.01608 16.8593C4.8388 16.3802 4.1612 16.3802 3.98392 16.8593L3.49789 18.1728C3.44216 18.3234 3.3234 18.4422 3.17278 18.4979L1.85931 18.9839C1.38023 19.1612 1.38023 19.8388 1.85931 20.0161L3.17278 20.5021C3.3234 20.5578 3.44216 20.6766 3.49789 20.8272L3.98392 22.1407C4.1612 22.6198 4.8388 22.6198 5.01608 22.1407L5.50211 20.8272C5.55784 20.6766 5.6766 20.5578 5.82722 20.5021L7.14069 20.0161C7.61977 19.8388 7.61977 19.1612 7.14069 18.9839L5.82722 18.4979C5.6766 18.4422 5.55784 18.3234 5.50211 18.1728L5.01608 16.8593z"/></svg>
                                 <div style="max-width: 400px;margin-left: 4px" class="ellipsis">{{item.name}}</div>
                               </div>
-                              <div style="align-items: center" class="quick-command-icon">
+                              <div v-if="!isRelease" style="align-items: center" class="quick-command-icon">
                                 <a-tooltip title="编辑">
                                   <Icon style="cursor: pointer;margin-left: 10px" icon="ant-design:edit-outlined" @click="editCommandClick(item)"></Icon>
                                 </a-tooltip>
@@ -167,16 +181,18 @@
                       <template #label>
                        <div style="display: flex;justify-content: space-between;width: 100%;margin-right: 2px">
                          <div class="item-title">AI模型</div>
-                         <div @click="handleParamSettingClick('model')" class="knowledge-txt">
+                         <div v-if="!isRelease" @click="handleParamSettingClick('model')" class="knowledge-txt">
                             <Icon icon="ant-design:setting-outlined" size="13" style="margin-right: 2px"></Icon>参数配置
                          </div>
                        </div>
                       </template>
                       <JDictSelectTag
                           v-model:value="formState.modelId"
+                          :disabled="isRelease"
                           placeholder="请选择AI模型"
-                          dict-code="airag_model where model_type = 'LLM',name,id"
+                          dict-code="airag_model where model_type = 'LLM' and activate_flag = 1,name,id"
                           style="width: 100%;"
+                          @change="handleModelIdChange"
                       ></JDictSelectTag>
                     </a-form-item>
                   </div>
@@ -193,11 +209,11 @@
                       <template #label>
                         <div style="display: flex; justify-content: space-between; width: 100%;margin-left: 2px;">
                           <div class="item-title">知识库</div>
-                          <div>
+                          <div v-if="!isRelease">
                             <span @click="handleParamSettingClick('knowledge')" class="knowledge-txt">
                               <Icon icon="ant-design:setting-outlined" size="13" style="margin-right: 2px"></Icon>参数配置
                             </span>
-                            <span @click="handleAddKnowledgeIdClick" class="knowledge-txt">
+                            <span @click="handleAddKnowledgeIdClick('knowledge')" class="knowledge-txt">
                               <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
                             </span>
                           </div>
@@ -209,9 +225,10 @@
                             <div style="display: flex; width: 100%; justify-content: space-between">
                               <div>
                                 <img class="knowledge-img" :src="knowledge" />
-                                <span class="knowledge-name">{{ item.name }}</span>
+                                <span class="knowledge-name" style="color: #e03e2d;text-decoration: line-through" v-if="item.isDelete">{{ item.name }}</span>
+                                <span class="knowledge-name" v-else>{{ item.name }}</span>
                               </div>
-                              <Icon @click="handleDeleteKnowledge(item.id)" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
+                              <Icon v-if="!isRelease" @click="handleDeleteKnowledge(item.id,'knowledge')" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
                             </div>
                           </a-card>
                         </a-col>
@@ -222,68 +239,292 @@
                     </a-form-item>
                   </div>
                 </a-col>
+                <!-- 关联工作流多个 -->
+                <a-col :span="24" v-if="formState.type==='chatSimple'" class="mt-10">
+                  <div class="prologue-chunk">
+                    <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol">
+                      <template #label>
+                        <div style="display: flex;justify-content: space-between;width: 100%;">
+                          <span>关联流程</span>
+                          <span v-if="!isRelease" @click="handleAddFlowClick('chatSimple')" class="knowledge-txt">
+                             <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
+                          </span>
+                        </div>
+                      </template>
+                      <a-row :span="24">
+                        <a-col :span="12" v-for="flowData in flowDataList" v-if="flowDataList && flowDataList.length>0">
+                          <a-card hoverable class="knowledge-card" :body-style="{ width: '100%' }">
+                            <div style="display: flex; width: 100%; justify-content: space-between;">
+                              <div style="width: 100%;display: flex;">
+                                <img :src="getFlowImage(flowData.icon)" class="flow-icon"/>
+                                <div style="display: grid;margin-left: 5px;align-items: center;width: calc(100% - 20px)">
+                                  <span class="flow-name" style="color: #e03e2d;text-decoration: line-through" v-if="flowData.type">{{ flowData.name }}</span>
+                                  <span v-else class="flow-name ellipsis align-items: center;">{{ flowData.name }}</span>
+                                  <div class="flex text-status" v-if="flowData.metadata && flowData.metadata.length>0">
+                                    <span class="tag-input">输入</span>
+                                    <div v-for="(metaItem, index) in flowData.metadata">
+                                      <a-tag color="#f2f3f8" class="tags-meadata">
+                                        <span v-if="index<5" class="tag-text">{{ metaItem.field }}</span>
+                                      </a-tag>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <Icon v-if="!isRelease" @click="handleDeleteFlow('chatSimple',flowData.id)" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
+                            </div>
+                          </a-card>
+                        </a-col>
+                        <div v-else class="data-empty-text">
+                          工作流支持通过可视化的方式，对大语言模型、脚本、增强等功能进行组合，从而实现复杂、稳定的业务流程编排，例如旅行规划、报告分析。
+                        </div>
+                      </a-row>
+               
+                    </a-form-item>
+                  </div>
+                </a-col>
+                <!-- 插件关联区块 -->
+                <a-col :span="24" v-if="formState.type==='chatSimple'" class="mt-10">
+                  <div class="prologue-chunk">
+                    <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol">
+                      <template #label>
+                        <div style="display: flex; justify-content: space-between; width: 100%;margin-left: 2px;">
+                          <div class="item-title">关联MCP&插件</div>
+                          <div v-if="!isRelease">
+                            <span @click="handleAddMcpClick" class="knowledge-txt">
+                              <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
+                            </span>
+                          </div>
+                        </div>
+                      </template>
+                      <a-row :span="24">
+                        <a-col :span="12" v-for="item in pluginDataList" :key="item.id" v-if="pluginDataList && pluginDataList.length>0">
+                          <a-card hoverable class="knowledge-card" :body-style="{ width: '100%' }">
+                            <div style="display: flex; width: 100%; justify-content: space-between">
+                              <div>
+                                <img class="knowledge-img" src="/@/views/super/airag/aimcp/imgs/mcpLogo.png" />
+                                <span class="knowledge-name">{{ item.name }}</span>
+                              </div>
+                              <Icon v-if="!isRelease" @click="handleDeleteMcp(item.id)" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
+                            </div>
+                          </a-card>
+                        </a-col>
+                        <div v-else class="data-empty-text">
+                          <div style="margin-bottom: 8px;">添加插件后，智能体可调用外部工具能力丰富对话。</div>
+                          <div class="mcp-warning-tip">
+                            <Icon icon="ant-design:exclamation-circle-outlined" style="margin-right: 4px;" />
+                            <span>注意：部分大模型暂不支持工具调用功能，请确认所选模型兼容性</span>
+                          </div>
+                        </div>
+                      </a-row>
+                    </a-form-item>
+                  </div>
+                </a-col>
+                <a-col :span="24" class="mt-10" v-if="formState.type==='chatSimple'">
+                  <a-collapse v-model:activeKey="memoryActiveKey" :bordered="false" style="background-color: transparent">
+                    <a-collapse-panel key="1">
+                      <template #header>
+                        <div style="font-weight: 600;color: rgba(32,41,69,0.62);font-size: 14px;justify-content: space-between;display: flex; width: 100%">
+                          <span>记忆</span>
+                          <a-switch @click.prevent.stop="" :disabled="isRelease" v-model:checked="izOpenMemoryChecked" checked-children="开" un-checked-children="关" @change="handleMemoryChange"></a-switch>
+                        </div>
+                      </template>
+                      <div v-if="izOpenMemoryChecked">
+                        <div class="prologue-chunk">
+                          <div style="display: flex; justify-content: space-between; width: 100%;margin-left: 2px;">
+                            <div class="item-title">变量</div>
+                            <div v-if="!isRelease">
+                              <span @click="handleAddVariable" class="knowledge-txt">
+                                <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
+                              </span>
+                            </div>
+                          </div>
+                          <div v-if="formState.variables">
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; padding-top: 8px;margin-bottom: 8px">
+                              <a-tag v-for="(item, index) in variablesList"
+                                     :key="index"
+                                     color="#2e2e3814"
+                                     style="color: #6b6b75;border-radius: 4px; border: none; padding: 0 5px;">
+                                {{ item.name }}
+                              </a-tag>
+                            </div>
+                          </div>
+                          <div v-else class="data-empty-text">
+                            用于保存用户个人信息，让智能体记住用户的特征，使回复更加个性化。
+                          </div>
+                        </div>
+                        <div class="prologue-chunk" style="margin-top: 10px;">
+                          <div style="display: flex; justify-content: space-between; width: 100%;margin-left: 2px;">
+                            <div class="item-title">长期记忆</div>
+                            <div v-if="!isRelease">
+                              <span @click="handleAddKnowledgeIdClick('memory')" class="knowledge-txt">
+                                <Icon icon="ant-design:plus-outlined" size="13" style="margin-right: 2px"></Icon>添加
+                              </span>
+                            </div>
+                          </div>
+                          <div v-if="memoryData" class="prologue-chunk">
+                            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" v-bind="validateInfos.memoryId">
+                              <a-card hoverable class="knowledge-card" :body-style="{ width: '100%' }">
+                                <div style="display: flex; width: 100%; justify-content: space-between">
+                                  <div>
+                                    <img class="knowledge-img" :src="knowledge" />
+                                    <span class="knowledge-name" style="color: #e03e2d;text-decoration: line-through" v-if="memoryData.isDelete">{{ memoryData.name }}</span>
+                                    <span class="knowledge-name" v-else>{{ memoryData.name }}</span>
+                                  </div>
+                                  <Icon v-if="!isRelease" @click="handleDeleteKnowledge(memoryData.id,'memgory')" icon="ant-design:close-outlined" size="20" class="knowledge-icon"></Icon>
+                                </div>
+                              </a-card>
+                            </a-form-item>
+                          </div>
+                          <div v-else class="data-empty-text">
+                            开启后可总结聊天对话的内容，并用于更好的响应用户的消息。
+                          </div>
+                        </div>
+                        <div class="prologue-chunk" style="margin-top: 20px;">
+                          <div class="prompt-title-padding item-title space-between">
+                            <span>记忆与变量提示词</span>
+                            <div style="align-items: center;display:flex;justify-content: center" v-if="!isRelease">
+                              <a-button size="middle" ghost>
+                                 <span style="align-items: center;display:flex" @click="generateVariablePrompt">
+                                   <svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.9839 1.85931C19.1612 1.38023 19.8388 1.38023 20.0161 1.85931L20.5021 3.17278C20.5578 3.3234 20.6766 3.44216 20.8272 3.49789L22.1407 3.98392C22.6198 4.1612 22.6198 4.8388 22.1407 5.01608L20.8272 5.50211C20.6766 5.55784 20.5578 5.6766 20.5021 5.82722L20.0161 7.14069C19.8388 7.61977 19.1612 7.61977 18.9839 7.14069L18.4979 5.82722C18.4422 5.6766 18.3234 5.55784 18.1728 5.50211L16.8593 5.01608C16.3802 4.8388 16.3802 4.1612 16.8593 3.98392L18.1728 3.49789C18.3234 3.44216 18.4422 3.3234 18.4979 3.17278L18.9839 1.85931zM13.5482 4.07793C13.0164 2.64069 10.9836 2.64069 10.4518 4.07793L8.99368 8.01834C8.82648 8.47021 8.47021 8.82648 8.01834 8.99368L4.07793 10.4518C2.64069 10.9836 2.64069 13.0164 4.07793 13.5482L8.01834 15.0063C8.47021 15.1735 8.82648 15.5298 8.99368 15.9817L10.4518 19.9221C10.9836 21.3593 13.0164 21.3593 13.5482 19.9221L15.0063 15.9817C15.1735 15.5298 15.5298 15.1735 15.9817 15.0063L19.9221 13.5482C21.3593 13.0164 21.3593 10.9836 19.9221 10.4518L15.9817 8.99368C15.5298 8.82648 15.1735 8.47021 15.0063 8.01834L13.5482 4.07793zM5.01608 16.8593C4.8388 16.3802 4.1612 16.3802 3.98392 16.8593L3.49789 18.1728C3.44216 18.3234 3.3234 18.4422 3.17278 18.4979L1.85931 18.9839C1.38023 19.1612 1.38023 19.8388 1.85931 20.0161L3.17278 20.5021C3.3234 20.5578 3.44216 20.6766 3.49789 20.8272L3.98392 22.1407C4.1612 22.6198 4.8388 22.6198 5.01608 22.1407L5.50211 20.8272C5.55784 20.6766 5.6766 20.5578 5.82722 20.5021L7.14069 20.0161C7.61977 19.8388 7.61977 19.1612 7.14069 18.9839L5.82722 18.4979C5.6766 18.4422 5.55784 18.3234 5.50211 18.1728L5.01608 16.8593z"/></svg>
+                                   <span style="margin-left: 4px">生成</span>
+                                 </span>
+                              </a-button>
+                            </div>
+                          </div>
+                          <a-spin :spinning="memoryLoading" tip="为您编排应用程序中…">
+                            <a-textarea :disabled="memoryLoading" :rows="6" v-model:value="formState.memoryPrompt" placeholder="点击生成按钮生成记忆与变量提示词"/>
+                          </a-spin>
+                        </div>
+                      </div>
+                    </a-collapse-panel>
+                  </a-collapse>
+                </a-col>
                 <a-col :span="24" class="mt-10">
                   <div class="prologue-chunk">
                     <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" v-bind="validateInfos.msgNum">
                       <template #label>
                         <div style="margin-left: 2px">历史聊天记录</div>
                       </template>
-                      <a-input-number v-model:value="formState.msgNum"></a-input-number>
+                      <a-input-number :disabled="isRelease" v-model:value="formState.msgNum"></a-input-number>
                     </a-form-item>
+                  </div>
+                </a-col>
+                <a-col :span="24" class="mt-10">
+                  <div class="prologue-chunk">
+                    <div style="margin-left: 2px">个性化设置</div>
+                    <a-row>
+                      <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" v-bind="validateInfos.multiSession">
+                        <div style="display: flex;margin-top: 10px">
+                          <div style="margin-left: 2px">多会话模式：</div>
+                          <a-switch :disabled="isRelease" v-model:checked="multiSessionChecked" checked-children="开" un-checked-children="关" @change="handleMultiSessionChange"></a-switch>
+                        </div>
+                      </a-form-item>
+                    </a-row>
+                    <a-row>
+                      <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol">
+                        <div style="display: flex;margin-top: 10px">
+                          <div style="margin-left: 2px">开启绘画能力：</div>
+                          <a-switch :disabled="isRelease" v-model:checked="izDrawChecked" checked-children="开" un-checked-children="关" @change="handleDrawChange"></a-switch>
+                        </div>
+                      </a-form-item>
+                    </a-row>
+                    <a-row v-if="izDrawChecked" class="mt-10">
+                      <a-col :span="24">
+                        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" v-bind="validateInfos.drawModelId">
+                          <span style="margin-left: 2px; margin-bottom: 5px">绘画模型：</span>
+                          <JDictSelectTag
+                              v-model:value="formState.drawModelId"
+                              :disabled="isRelease"
+                              placeholder="请选择会话模型"
+                              dict-code="airag_model where model_type = 'IMAGE' and activate_flag = 1,name,id"
+                              @change="handleDrawModelChange"
+                          ></JDictSelectTag>
+                        </a-form-item>
+                      </a-col>
+                    </a-row>
                   </div>
                 </a-col>
               </a-row>
             </a-form>
           </a-col>
           <a-col :span="14" class="setting-right">
-            <chat :uuid="uuid" :prologue="prologue" :appId="appId" :formState="formState" url="/airag/app/debug" :presetQuestion="presetQuestion" :quickCommandData="quickCommandList"></chat>
+            <chat 
+              :uuid="uuid" 
+              :prologue="prologue" 
+              :appId="appId" 
+              :formState="formState" 
+              url="/airag/app/debug" 
+              :presetQuestion="presetQuestion" 
+              :quickCommandData="quickCommandList"
+              :hasExtraFlowInputs="hasExtraFlowInputs"
+              :conversationSettings="conversationSettings"
+              @edit-settings="handleEditSettings"
+            ></chat>
           </a-col>
         </a-row>
       </div>
     </BasicModal>
 
     <!--  Ai知识库选择弹窗   -->
-    <AiAppAddKnowledgeModal @register="registerKnowledgeModal" @success="handleSuccess"></AiAppAddKnowledgeModal>
+    <AiAppAddKnowledgeModal :multiple="knowledgeMultiple" :type="knowledgeMultiple?'knowledge':'memory'" @register="registerKnowledgeModal" @success="handleSuccess"></AiAppAddKnowledgeModal>
+    <!--  插件选择弹窗   -->
+    <AiAppAddMcpModal @register="registerMcpModal" @success="handleMcpSuccess"></AiAppAddMcpModal>
     <!--  Ai添加流程弹窗  -->
-    <AiAppAddFlowModal @register="registerFlowModal" @success="handleAddFlowSuccess"></AiAppAddFlowModal>
+    <AiAppAddFlowModal @register="registerFlowModal" @success="handleAddFlowSuccess" :multiple="multiple"></AiAppAddFlowModal>
     <!-- Ai配置弹窗   -->
     <AiAppParamsSettingModal @register="registerParamsSettingModal" @ok="handleParamsSettingOk"></AiAppParamsSettingModal>
     <!--  Ai应用新增编辑弹窗  -->
     <AiAppModal @register="registerAiAppModal" @success="handelEditSuccess"></AiAppModal>
     <!-- Ai生成器   -->
     <AiAppGeneratedPromptModal @register="registerAiAppPromptModal" @ok="handleAiAppPromptOk"></AiAppGeneratedPromptModal>
+    <!-- Ai提示词选择弹窗   -->
+    <AiAppPromptMarketModal @register="registerAiPromptSelectModal" @ok="handleAiAppPromptOk"></AiAppPromptMarketModal>
     <!--  Ai快捷指令  -->
     <AiAppQuickCommandModal @register="registerAiAppCommandModal" @ok="handleAiAppCommandOk" @update-ok="handleAiAppCommandUpdateOk"></AiAppQuickCommandModal>
+    <!-- 对话设置弹窗 -->
+    <ConversationSettingsModal
+      ref="settingsModalRef"
+      :flowInputs="flowInputs"
+      conversationId="debug"
+      :existingSettings="conversationSettings"
+      @ok="handleSettingsOk"
+    />
+    <!--  用户变量  -->
+    <AiUserVariablesModal @register="registerVariablesModal" @ok="handleVariablesOk"></AiUserVariablesModal>
   </div>
 </template>
 
 <script lang="ts">
-  import { ref, reactive, nextTick, computed } from 'vue';
+  import { ref, reactive, nextTick, computed, watch } from 'vue';
   import BasicModal from '@/components/Modal/src/BasicModal.vue';
   import { useModal, useModalInner } from '@/components/Modal';
-  import { Form, TimePicker } from 'ant-design-vue';
+  import { Form, TimePicker, Collapse, CollapsePanel } from 'ant-design-vue';
   import { initDictOptions } from '@/utils/dict';
-  import {queryKnowledgeBathById, saveApp, queryById, queryFlowById} from '../AiApp.api';
+  import { queryKnowledgeBathById, saveApp, queryById, queryFlowById, queryFlowByIds, queryKnowledgeById, generateMemoryByAppId } from '../AiApp.api';
+  import { defHttp } from '@/utils/http/axios';
   import JDictSelectTag from '@/components/Form/src/jeecg/components/JDictSelectTag.vue';
   import AiAppAddKnowledgeModal from './AiAppAddKnowledgeModal.vue';
+  import AiAppAddMcpModal from './AiAppAddMcpModal.vue';
   import AiAppParamsSettingModal from './AiAppParamsSettingModal.vue';
   import AiAppGeneratedPromptModal from './AiAppGeneratedPromptModal.vue';
+  import AiAppPromptMarketModal from './AiAppPromptMarketModal.vue';
   import AiAppQuickCommandModal from './AiAppQuickCommandModal.vue';
   import AiAppAddFlowModal from './AiAppAddFlowModal.vue';
   import AiAppModal from './AiAppModal.vue';
   import chat from '../chat/chat.vue';
+  import ConversationSettingsModal from '../chat/components/ConversationSettingsModal.vue';
   import knowledge from '/@/views/super/airag/aiknowledge/icon/knowledge.png';
   import { cloneDeep } from 'lodash-es';
-  import dayjs from 'dayjs';
   import JImageUpload from '@/components/Form/src/jeecg/components/JImageUpload.vue';
   import defaultImg from '../img/ailogo.png';
-  import {getFileAccessHttpUrl, randomString, simpleDebounce} from "@/utils/common/compUtils";
+  import { getFileAccessHttpUrl, randomString } from "@/utils/common/compUtils";
   import JSearchSelect from "@/components/Form/src/jeecg/components/JSearchSelect.vue";
   import JMarkdownEditor from "@/components/Form/src/jeecg/components/JMarkdownEditor.vue";
   import AiAppJson from './AiApp.json'
   import draggable from 'vuedraggable';
   import { useMessage } from "@/hooks/web/useMessage";
   import defaultFlowImg from "@/assets/images/ai/aiflow.png";
+  import AiUserVariablesModal from "./AiUserVariablesModal.vue";
   
   export default {
     name: 'AiAppSettingModal',
@@ -295,12 +536,16 @@
       JDictSelectTag,
       BasicModal,
       AiAppAddKnowledgeModal,
+      AiAppAddMcpModal,
       AiAppParamsSettingModal,
       AiAppAddFlowModal,
       AiAppModal,
       chat,
+      ConversationSettingsModal,
       AiAppGeneratedPromptModal,
       AiAppQuickCommandModal,
+      AiAppPromptMarketModal,
+      AiUserVariablesModal,
     },
     emits: ['success', 'register'],
     setup(props, { emit }) {
@@ -326,24 +571,39 @@
         type: '',
         modelId: '',
         icon: '',
-        presetQuestion:''
+        presetQuestion:'',
+        memoryId: '',
+        variables: '',
+        izOpenMemory: 1,
+        memoryPrompt: '',
+        drawModelId: '',
       });
+
       //表单验证
       const validatorRules = ref<any>({
         name: [{ required: true, message: '请输入应用名称!' }],
         modelId: [{ required: true, message: '请选择AI模型!' }],
-        flowId:[{ required: true, message: '请选择AI流程!' }]
+        flowId:[{ required: true, message: '请选择AI流程!' }],
+        drawModelId: [{  required: true, message: '请选择绘画模型!' }]
       });
       //注册form
-      const formRef = ref();
       const useForm = Form.useForm;
-      const { resetFields, validate, validateInfos, validateField } = useForm(formState, validatorRules, { immediate: false });
+      const { resetFields, validate, validateInfos } = useForm(formState, validatorRules, { immediate: false });
       const labelCol = ref<any>({ span: 24 });
       const wrapperCol = ref<any>({ span: 24 });
       //关联知识库的id
       const knowledgeIds = ref<any>('');
       //知识库集合
       const knowledgeDataList = ref<any>([]);
+      //记忆库的数据
+      const memoryData = ref<any>(null);
+      const knowledgeMultiple = ref<boolean>(true);
+      // 插件id集合（只存id）
+      const pluginIds = ref<any>([]);
+      // 插件对象集合（包含name等）
+      const pluginDataList = ref<any>([]);
+      // 插件结构（保存时写入 formState.plugins）
+      const plugins = ref<any>([]);
       //开场白的数据
       const prologue = ref<any>('');
       //应用id
@@ -358,10 +618,38 @@
       //快捷指令
       const quickCommand = ref<any>('');
       const { createMessage } = useMessage();
+      //多会话模式选中状态
+      const multiSessionChecked = ref<boolean>(true);
+      //开启会话能力
+      const izDrawChecked = ref<boolean>(false);
+      // 是否已发布
+      const isRelease = ref<boolean>(false);
+      //对话设置弹窗ref
+      const settingsModalRef = ref();
+      //工作流入参列表
+      const flowInputs = ref<any[]>([]);
+      //对话设置（用于调试模式）
+      const conversationSettings = ref<Record<string, any>>({});
+      //流程数据集合
+      const flowDataList = ref<any>([]);
+      //多个流程id
+      const flowIds = ref<string>('');
+      //是否多选
+      const multiple = ref<boolean>(false);
+      //变量数据
+      const variablesList = ref<any>([]);
+      //是否开启记忆
+      const izOpenMemoryChecked = ref<any>(false);
+      //记忆折叠面板
+      const memoryActiveKey = ref<any>();
+      //记忆提示词是否加载
+      const memoryLoading = ref<any>(false);
+      
       //注册modal
       const [registerModal, { closeModal, setModalProps }] = useModalInner(async (data) => {
         appId.value = data.id;
         isUpdate.value = !!data?.isUpdate;
+        isRelease.value = data?.status === 'release';
         clearParam();
         if (isUpdate.value) {
           setTimeout(() => {
@@ -371,14 +659,16 @@
           //新增成功之后需要有id
           queryById({ id: data.id }).then((res) => {
             if (res.success) {
+              resetFields();
               //赋值
               Object.assign(formState, res.result);
-              formState.prompt = AiAppJson.prompt;
-              formState.prologue = AiAppJson.prologue;
-              formState.presetQuestion = JSON.stringify(AiAppJson.presetQuestion);
-              prologue.value = AiAppJson.prologue;
+              formState.prompt = cloneDeep(AiAppJson.prompt);
+              formState.prologue = cloneDeep(AiAppJson.prologue);
+              formState.presetQuestion = JSON.stringify(cloneDeep(AiAppJson.presetQuestion));
+              formState.msgNum = 1;
+              prologue.value = cloneDeep(AiAppJson.prologue);
               presetQuestion.value = formState.presetQuestion;
-              presetQuestionList.value = AiAppJson.presetQuestion;
+              presetQuestionList.value = cloneDeep(AiAppJson.presetQuestion);
               addRules(res.result.type)
             }
           });
@@ -388,11 +678,14 @@
 
       //注册modal
       const [registerKnowledgeModal, { openModal }] = useModal();
+      const [registerMcpModal, { openModal: openMcpModal }] = useModal();
       const [registerFlowModal, { openModal: registerFlowOpen }] = useModal();
       const [registerParamsSettingModal, { openModal: paramsSettingOpen }] = useModal();
       const [registerAiAppModal, { openModal: aiAppModalOpen }] = useModal();
       const [registerAiAppPromptModal, { openModal: aiAppPromptModalOpen }] = useModal();
       const [registerAiAppCommandModal, { openModal: aiAppCommandModalOpen }] = useModal();
+      const [registerAiPromptSelectModal, { openModal: aiPromptSelectModalOpen }] = useModal();
+      const [registerVariablesModal, { openModal: aiVariablesModalOpen }] = useModal();
 
       /**
        * 保存
@@ -402,7 +695,11 @@
           let values = await validate();
           setModalProps({ confirmLoading: true });
           formState.knowledgeIds = knowledgeIds.value;
+          if(flowIds.value){
+            formState.flowId = flowIds.value;
+          }
           await saveApp(formState);
+          emit('success')
         } finally {
           setModalProps({ confirmLoading: false });
         }
@@ -442,12 +739,34 @@
 
       /**
        * 添加关联知识库
+       * 
+       * @param type
        */
-      function handleAddKnowledgeIdClick() {
-        openModal(true, {
-          knowledgeIds: knowledgeIds.value,
-          knowledgeDataList: knowledgeDataList.value,
-        });
+      function handleAddKnowledgeIdClick(type) {
+        //update-begin---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+        knowledgeMultiple.value = type === 'knowledge'
+        if(type === 'knowledge'){
+          openModal(true, {
+            knowledgeIds: knowledgeIds.value,
+            knowledgeDataList: knowledgeDataList.value,
+          });
+        } else {
+          openModal(true, {
+            knowledgeIds: formState.memoryId,
+            knowledgeData: memoryData.value,
+          });
+        }
+        //update-end---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+      }
+
+      /**
+       * 添加关联MCP
+       */
+      function handleAddMcpClick(){
+        openMcpModal(true,{
+          pluginIds: pluginIds.value,
+          pluginDataList: pluginDataList.value
+        })
       }
 
       /**
@@ -456,22 +775,64 @@
        * @param knowledgeData
        */
       function handleSuccess(knowledgeId, knowledgeData) {
-        knowledgeIds.value = cloneDeep(knowledgeId.join(','));
-        knowledgeDataList.value = cloneDeep(knowledgeData);
-        formState.knowledgeIds = knowledgeIds.value;
+        //update-begin---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+        if(knowledgeMultiple.value){
+          knowledgeIds.value = cloneDeep(knowledgeId.join(','));
+          knowledgeDataList.value = cloneDeep(knowledgeData);
+          formState.knowledgeIds = knowledgeIds.value;
+        } else {
+          formState.memoryId = knowledgeId;
+          memoryData.value = knowledgeData;
+        }
+        //update-end---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+      }
+
+      /**
+       * MCP选中成功回调
+       * @param ids
+       * @param dataList
+       * @param pluginStruct
+       */
+      function handleMcpSuccess(ids, dataList, pluginStruct){
+        pluginIds.value = cloneDeep(ids);
+        pluginDataList.value = cloneDeep(dataList);
+        plugins.value = cloneDeep(pluginStruct);
+        formState.plugins = JSON.stringify(plugins.value);
       }
 
       /**
        * 删除知识库
        */
-      function handleDeleteKnowledge(id) {
-        let array = knowledgeIds.value.split(',');
-        let findIndex = array.findIndex((item) => item === id);
-        if (findIndex != -1) {
-          array.splice(findIndex, 1);
-          knowledgeIds.value = array ? array.join(',') : '';
-          knowledgeDataList.value.splice(findIndex, 1);
-          formState.knowledgeIds = knowledgeIds.value;
+      function handleDeleteKnowledge(id, type) {
+        //update-begin---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+        //update-begin---author:wangshuai---date:2026-01-14---for:【QQYUN-14562】【ai应用】记忆添加后，×不掉---
+        if(type === 'knowledge'){
+        //update-end---author:wangshuai---date:2026-01-14---for:【QQYUN-14562】【ai应用】记忆添加后，×不掉---
+          let array = knowledgeIds.value.split(',');
+          let findIndex = array.findIndex((item) => item === id);
+          if (findIndex != -1) {
+            array.splice(findIndex, 1);
+            knowledgeIds.value = array ? array.join(',') : '';
+            knowledgeDataList.value.splice(findIndex, 1);
+            formState.knowledgeIds = knowledgeIds.value;
+          }
+        } else {
+          formState.memoryId = "";
+          memoryData.value = null;
+        //update-end---author:wangshuai---date:2025-12-29---for:【QQYUN-14265】【AI】支持记忆---
+        }
+      }
+
+      /**
+       * 删除MCP
+       */
+      function handleDeleteMcp(id){
+        const findIndex = pluginIds.value.findIndex((item:any)=> item === id);
+        if(findIndex>-1){
+          pluginIds.value.splice(findIndex,1);
+          pluginDataList.value.splice(findIndex,1);
+          plugins.value = pluginDataList.value.map((it:any)=> ({ pluginId: it.id, pluginName: it.name, category: 'mcp'}));
+          formState.plugins = JSON.stringify(plugins.value);
         }
       }
 
@@ -481,10 +842,30 @@
        */
       function getKnowledgeDataList(ids) {
         queryKnowledgeBathById({ ids: ids }).then((res) => {
-          if (res.success) {
-            knowledgeDataList.value = res.result;
+          //update-begin---author:wangshuai---date:2025-04-24---for:【QQYUN-12133】【AI】应用关联的知识库呗删除后，再次进入应用看不到已删除的知识库，并且无法清理掉知识库。---
+          if (res.success && res.result) {
+            let result = res.result;
+            let idArray = ids.split(",");
+            let arr:any = [];
+            for (const id of idArray) {
+              let filter = result.filter((item) => item.id === id);
+              if(filter && filter.length > 0) {
+                arr.push({ id: id, name: filter[0].name});
+              } else {
+                arr.push({ name: '该知识库已被删除', id: id,isDelete: true })
+              }
+            }
+            knowledgeDataList.value = arr;
+            knowledgeIds.value = ids;
+          } else {
+            let arr:any = [];
+            for (const id of ids) {
+              arr.push({ name: '该知识库已被删除', id: id, isDelete: true })
+            }
+            knowledgeDataList.value = arr;
             knowledgeIds.value = ids;
           }
+          //update-end---author:wangshuai---date:2025-04-24---for:【QQYUN-12133】【AI】应用关联的知识库呗删除后，再次进入应用看不到已删除的知识库，并且无法清理掉知识库。---
         });
       }
 
@@ -497,7 +878,7 @@
 
       /**
        * 关闭弹窗触发列表刷新
-       * 
+       *
        * @param value
        */
       function visibleChange(value) {
@@ -508,7 +889,7 @@
 
       /**
        * 添加检验
-       * 
+       *
        * @param type
        */
       function addRules(type){
@@ -535,13 +916,13 @@
 
       /**
        * 参数配置确定回调事件
-       * 
+       *
        * @param value
        */
       function handleParamsSettingOk(value){
-        metadata.value = value;
+        Object.assign(metadata.value,value)
         if(value) {
-          formState.metadata = JSON.stringify(value);
+          formState.metadata = JSON.stringify(metadata.value);
         }
       }
 
@@ -570,9 +951,17 @@
 
       /**
        * 添加流程
+       * @param type 是否多选
        */
-      function handleAddFlowClick() {
-        registerFlowOpen(true,{ flowId: flowId.value, flowData: flowData.value })
+      function handleAddFlowClick(type) {
+        //update-begin---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
+        multiple.value = type === 'chatSimple';
+        if(type === 'chatSimple'){
+          registerFlowOpen(true,{ flowId: flowIds.value, flowData: flowDataList.value })
+        } else {
+          registerFlowOpen(true,{ flowId: flowId.value, flowData: flowData.value })
+        }
+        //update-end---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
       }
 
       /**
@@ -580,18 +969,37 @@
        * @param values
        */
       function handleAddFlowSuccess(values) {
-        flowId.value = values.flowId;
-        formState.flowId = values.flowId;
-        flowData.value = values.flowData;
+        //update-begin---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
+        if(multiple.value){
+          flowIds.value = values.flowId?.join(",");
+          flowDataList.value = values.flowData;
+        } else {
+          flowId.value = values.flowId;
+          formState.flowId = values.flowId;
+          flowData.value = values.flowData;
+        }
+        //update-end---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
       }
 
       /**
        * 删除流程
        */
-      function handleDeleteFlow() {
-        flowId.value = "";
-        formState.flowId = "";
-        flowData.value = null;
+      function handleDeleteFlow(type, id = '') {
+        //update-begin---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
+        if(type === 'chatFLow'){
+          flowId.value = "";
+          formState.flowId = "";
+          flowData.value = null;
+        } else {
+          let array = flowIds.value.split(',');
+          let findIndex = array.findIndex((item) => item === id);
+          if (findIndex != -1) {
+            array.splice(findIndex, 1);
+            flowIds.value = array ? array.join(',') : '';
+            flowDataList.value.splice(findIndex, 1);
+          }
+        }
+        //update-end---author:wangshuai---date:2025-12-24---for:【QQYUN-14267】创建应用的时候，选择工作流，让应用可以像调用MCP一样去调用流程: 单选和多选做区分---
       }
 
       /**
@@ -620,16 +1028,16 @@
 
       /**
        * 应用编辑回调事件
-       * 
+       *
        * @param values
        */
       function handelEditSuccess(values) {
         formState.icon = values.icon ? values.icon:'';
         formState.name = values.name ? values.name:'';
       }
-      
+
       //=========== begin预设问题 ===========================
-      
+
       // 编辑状态不允许拖动
       const disabledDrag = computed(()=>{
         let list = presetQuestionList.value;
@@ -641,7 +1049,7 @@
         }
         return false;
       });
-      
+
       /**
        * 预设问题拖拽
        */
@@ -652,7 +1060,7 @@
 
       /**
        * 预设问题添加
-       * 
+       *
        * @param e
        */
       function presetQuestionAddClick(e){
@@ -662,11 +1070,11 @@
         }
         const length = presetQuestionList.value.length;
         presetQuestionList.value.push({key: length + 1, sort: length + 1, descr: ''})
-      } 
-      
+      }
+
       /**
        * 预设问题删除
-       * 
+       *
        * @param key
        */
       function deleteQuestionClick(key){
@@ -693,7 +1101,7 @@
 
       /**
        * 预设问题值改变事件
-       * 
+       *
        */
       function questionChange() {
         if(presetQuestionList.value && presetQuestionList.value.length>0){
@@ -704,22 +1112,77 @@
           formState.presetQuestion = "";
         }
       }
-      
+
       //=========== end预设问题 ===========================
-      
+
+      /**
+       * 根据多个流程id查询流程
+       */
+      function getFlowDataByIds(ids) {
+        queryFlowByIds({ id: ids, pageNo:1, pageSize: 100 }).then((res) =>{
+          if(res.success && res.result){
+            let records = res.result.records || [];
+            let idArray = ids.split(",");
+            let arr:any = [];
+            let idsList:any = [];
+
+            for (const id of idArray) {
+              let item = records.find(r => r.id === id);
+              if (item) {
+                if(item.metadata){
+                  try {
+                    let metadata = JSON.parse(item.metadata);
+                    if(metadata.inputs){
+                      item.metadata = metadata.inputs;
+                    }
+                  } catch (e) {
+                    console.error("metadata parse error", e);
+                  }
+                }
+                arr.push(item);
+              } else {
+                arr.push({ name: '该流程已被删除', id: id, type: 'delete' });
+              }
+              idsList.push(id);
+            }
+            flowDataList.value = arr;
+            flowIds.value = idsList.join(",");
+          } else {
+            let arr:any = [];
+            let idArray = ids.split(",");
+            for (const id of idArray) {
+              arr.push({ name: '该流程已被删除', id: id, type: 'delete'})
+            }
+            flowDataList.value = arr;
+            flowIds.value = ids;
+          }
+        })
+      }
+
       /**
        * 清除参数
        */
       function clearParam() {
         knowledgeIds.value = '';
         knowledgeDataList.value = [];
+        memoryData.value = null;
+        pluginIds.value = [];
+        pluginDataList.value = [];
+        plugins.value = [];
         prologue.value = '';
         flowId.value = '';
         flowData.value = null;
+        flowDataList.value = [];
+        flowIds.value = '';
         presetQuestion.value = '';
-        presetQuestionList.value = [];
+        presetQuestionList.value = [{ key:1, sort: 1, descr: '' }];
         quickCommandList.value = [];
         quickCommand.value = '';
+        multiSessionChecked.value = true;
+        variablesList.value = [];
+        izOpenMemoryChecked.value = false;
+        memoryLoading.value = false;
+        memoryActiveKey.value = [];
       }
 
       /**
@@ -735,13 +1198,44 @@
         data.msgNum = data.msgNum ? data.msgNum : 1;
         if(data.metadata){
           metadata.value = JSON.parse(data.metadata);
+          if(metadata.value?.multiSession){
+            multiSessionChecked.value = metadata.value.multiSession === '1';
+          }else{
+            multiSessionChecked.value = true;
+          }
+          if(metadata.value?.izDraw){
+            izDrawChecked.value = metadata.value.izDraw === '1';
+          }else{
+            izDrawChecked.value = false;
+          }
+          if(metadata.value?.drawModelId){
+            formState.drawModelId = metadata.value.drawModelId;
+          }
         }
         if(data.presetQuestion){
           presetQuestion.value = data.presetQuestion;
           presetQuestionList.value = JSON.parse(data.presetQuestion);
         }
         if(data.quickCommand){
-          quickCommandList.value = JSON.parse(data.quickCommand);
+          //update-begin---author:wangshuai---date:2025-04-08---for:【QQYUN-11939】ai应用 快捷指令 修改保存以后，再次打开还是原来的---
+          let parse = JSON.parse(data.quickCommand);
+          for (let i = 0; i < parse.length; i++) {
+            parse[i].key = (i+1).toString();
+          }
+          quickCommandList.value = parse;
+          //update-end---author:wangshuai---date:2025-04-08---for:【QQYUN-11939】ai应用 快捷指令 修改保存以后，再次打开还是原来的---
+        }
+        if(data.plugins){
+          try {
+            const parsePlugins = JSON.parse(data.plugins);
+            pluginIds.value = parsePlugins.map((p:any)=> p.pluginId);
+            pluginDataList.value = parsePlugins.map((p:any)=> ({ id: p.pluginId, name: p.pluginName }));
+            plugins.value = parsePlugins;
+          } catch (e) {
+            pluginIds.value = [];
+            pluginDataList.value = [];
+            plugins.value = [];
+          }
         }
         //赋值
         Object.assign(formState, data);
@@ -752,6 +1246,32 @@
         //根据知识库id查询流程信息
         if (data.type === 'chatFLow' && data.flowId) {
           getFlowDataById(data.flowId);
+        }
+        //根据流程的id查询流程信息
+        if (data.type === 'chatSimple' && data.flowId) {
+          getFlowDataByIds(data.flowId);
+        }
+        // 如果已有modelId，查询模型信息并更新到metadata中
+        if (data.type === 'chatSimple' && data.modelId) {
+          handleModelIdChange(data.modelId);
+        }
+        // 存在记忆库的id,查询记忆库并显示
+        if(data.type === 'chatSimple' && data.memoryId){
+          getMemoryDataById(data.memoryId);
+        }
+        //变量
+        if(formState.variables){
+          variablesList.value = JSON.parse(formState.variables);
+        }
+        //是否开启记忆
+        if(formState.izOpenMemory){
+          console.log("formState.izOpenMemory:::",formState.izOpenMemory)
+          izOpenMemoryChecked.value = formState.izOpenMemory === 1;
+        } else {
+          izOpenMemoryChecked.value = false;
+        }
+        if(izOpenMemoryChecked.value){
+          memoryActiveKey.value = [1];
         }
       }
 
@@ -765,14 +1285,14 @@
 
       /**
        * 提示词回调
-       * 
+       *
        * @param value
        */
       function handleAiAppPromptOk(value) {
         formState.prompt = value;
       }
       //============= end 提示词 ================================
-      
+
       //=============== begin 快捷指令 ============================
       function quickCommandEnd() {
         quickCommand.value = JSON.stringify(quickCommandList.value);
@@ -780,7 +1300,7 @@
       }
 
       /**
-       * 快捷指令新增呢个==点击事件
+       * 快捷指令新增点击事件
        */
       function quickCommandAddClick(){
         if(quickCommandList.value && quickCommandList.value.length > 4){
@@ -788,8 +1308,8 @@
           return;
         }
         aiAppCommandModalOpen(true,{})
-      }     
-      
+      }
+
       /**
        * 快捷指令编辑点击事件
        * @param item
@@ -799,18 +1319,21 @@
           isUpdate: true,
           record: item
         })
-      }    
-      
+      }
+
       /**
        * 快捷指令添加回调事件
        * @param value
        */
       function handleAiAppCommandOk(value){
-        quickCommandList.value.push({ key: quickCommandList.value.length + 1, ...value });
+        //update-begin---author:wangshuai---date:2025-04-08---for:【QQYUN-11939】ai应用 快捷指令 修改保存以后，再次打开还是原来的---
+        value.key = (quickCommandList.value.length + 1).toString();
+        //update-end---author:wangshuai---date:2025-04-08---for:【QQYUN-11939】ai应用 快捷指令 修改保存以后，再次打开还是原来的---
+        quickCommandList.value.unshift({...value });
         quickCommand.value = JSON.stringify(quickCommandList.value);
         formState.quickCommand = quickCommand.value;
       }
-      
+
       /**
        * 快捷指令更新回调事件
        * @param value
@@ -819,6 +1342,8 @@
         let findIndex = quickCommandList.value.findIndex(item => item.key === value.key);
         if(findIndex>-1){
           quickCommandList.value[findIndex] = value;
+          quickCommand.value = JSON.stringify(quickCommandList.value);
+          formState.quickCommand = quickCommand.value;
         }
       }
 
@@ -835,10 +1360,261 @@
         }
       }
       //=============== end 快捷指令 ============================
+
+      /**
+       * 复选框相中时的回调
+       */
+      function handleMultiSessionChange(checked){
+        if(checked){
+          metadata.value.multiSession = "1";
+        }else{
+          metadata.value.multiSession = "0";
+        }
+        formState.metadata = JSON.stringify(metadata.value);
+      }
+
+      // 检查是否有额外的工作流入参
+      const hasExtraFlowInputs = computed(() => {
+        if (!flowData.value || !flowData.value.metadata) {
+          return false;
+        }
+        try {
+          const flowInputsList = flowData.value.metadata || [];
+          
+          // 过滤掉固定参数
+          const fixedParams = ['history', 'content', 'images'];
+          const extraInputs = flowInputsList.filter((input: any) => !fixedParams.includes(input.field));
+          
+          return extraInputs.length > 0;
+        } catch (e) {
+          console.error('解析flowData.metadata失败', e);
+          return false;
+        }
+      });
+
+      // 监听flowData变化，更新flowInputs
+      watch(
+        () => flowData.value,
+        (val) => {
+          if (!val || !val.metadata) {
+            flowInputs.value = [];
+            return;
+          }
+          try {
+            const flowInputsList = val.metadata || [];
+            flowInputs.value = flowInputsList;
+          } catch (e) {
+            console.error('解析flowData.metadata失败', e);
+            flowInputs.value = [];
+          }
+        },
+        { immediate: true, deep: true }
+      );
+
+      /**
+       * 打开对话设置弹窗
+       */
+      function handleEditSettings() {
+        if (settingsModalRef.value) {
+          settingsModalRef.value.open();
+        }
+      }
+
+      /**
+       * 对话设置确定回调
+       */
+      function handleSettingsOk(settings: Record<string, any>) {
+        conversationSettings.value = settings;
+        console.log('调试模式对话设置已更新:', settings);
+      }
+
+      /**
+       * 模型ID变化处理
+       * 查询模型信息并更新到metadata中，供chat组件使用
+       */
+      async function handleModelIdChange(modelId: string) {
+        if (!modelId) {
+          // 如果清空模型，清除模型信息
+          if (metadata.value.modelInfo) {
+            delete metadata.value.modelInfo;
+            formState.metadata = JSON.stringify(metadata.value);
+          }
+          return;
+        }
+        try {
+          const res = await defHttp.get({
+            url: '/airag/airagModel/queryById',
+            params: { id: modelId }
+          }, { isTransformResponse: false });
+          if (res.success && res.result) {
+            const model = res.result;
+            // 将模型信息添加到metadata中
+            if (!metadata.value) {
+              metadata.value = {};
+            }
+            metadata.value.modelInfo = {
+              provider: model.provider || '',
+              modelType: model.modelType || '',
+              modelName: model.modelName || ''
+            };
+            formState.metadata = JSON.stringify(metadata.value);
+          }
+        } catch (e) {
+          console.error('获取模型信息失败', e);
+        }
+      }
       
+      function openPromptApps() {
+        aiPromptSelectModalOpen(true,{});
+      }
+      /**
+       * 获取记忆库的数据
+       */
+      function getMemoryDataById(id) {
+        queryKnowledgeById({id: id}).then((res) =>{
+          if(res.success && res.result){
+            memoryData.value = res.result;
+          } else {
+            memoryData.value = { name: '该知识库已被删除', id: id, isDelete: true };
+          }
+        })
+      }
+      //================================================ begin 变量和记忆提示词功能 =========================================================
+      /**
+       * 添加变量
+       */
+      function handleAddVariable() {
+        aiVariablesModalOpen(true,{
+          variables: formState.variables
+        })
+      }
+
+      /**
+       * 变量返回事件
+       * 
+       * @param values
+       */
+      function handleVariablesOk(values) {
+        if(values){
+          variablesList.value = values;
+          formState.variables = JSON.stringify(values);
+        }else{
+          formState.variables = "";
+          variablesList.value = [];
+        }
+      }
+
+      /**
+       * 是否开启会话模式返回值
+       * @param checked
+       */
+      function handleMemoryChange(checked) {
+        if(checked){
+          formState.izOpenMemory = 1;
+        } else {
+          formState.izOpenMemory = 0;
+        }
+      }
+
+      /**
+       * 记忆和变量提示词
+       */
+      async function generateVariablePrompt() {
+        formState.memoryPrompt = '';
+        memoryLoading.value = true;
+        let readableStream = await generateMemoryByAppId({ variables: formState.variables, memoryId: formState.memoryId }).catch(() => {
+          memoryLoading.value = false;
+        });
+        const reader = readableStream.getReader();
+        const decoder = new TextDecoder('UTF-8');
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          let result = decoder.decode(value, { stream: true });
+          const lines = result.split('\n\n');
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+              const content = line.replace('data:', '').trim();
+              if(!content){
+                continue;
+              }
+              if(!content.endsWith('}')){
+                buffer = buffer + line;
+                continue;
+              }
+              buffer = "";
+              renderText(content)
+            } else {
+              if(!line) {
+                continue;
+              }
+              if(!line.endsWith('}')) {
+                buffer = buffer + line;
+                continue;
+              }
+              buffer = "";
+              renderText(line)
+            }
+          }
+        }
+      }
+
+      /**
+       * 渲染文本
+       *
+       * @param item
+       */
+      function renderText(item) {
+        try {
+          let parse = JSON.parse(item);
+          if (parse.event == 'MESSAGE') {
+            formState.memoryPrompt += parse.data.message;
+            if(memoryLoading.value){
+              memoryLoading.value = false;
+            }
+          }
+          if (parse.event == 'MESSAGE_END') {
+            memoryLoading.value = false;
+          }
+          if (parse.event == 'ERROR') {
+            formState.memoryPrompt = parse.data.message ? parse.data.message: '生成失败，请稍后重试！'
+            memoryLoading.value = false;
+          }
+        } catch (error) {
+          console.log('Error parsing update:', error);
+        }
+      }
+      //================================================ end 变量和记忆提示词功能 =========================================================
+
+      //================================================ begin 开启绘画 =========================================================
+      /**
+       * 开启会话能力回调
+       */
+      function handleDrawChange(checked){
+        if(checked){
+          metadata.value.izDraw = "1";
+        }else{
+          metadata.value.izDraw = "0";
+        }
+        formState.metadata = JSON.stringify(metadata.value);
+      }
+
+      /**
+       * 会话模型改变回调
+       */
+      function handleDrawModelChange(val){
+        metadata.value.drawModelId = val;
+        formState.metadata = JSON.stringify(metadata.value);
+      }
+      //================================================ end 开启绘画 ========================================================
+
       return {
         registerModal,
         title,
+        isRelease,
         handleOk,
         handleCancel,
         appTypeOption,
@@ -850,11 +1626,17 @@
         wrapperCol,
         validateInfos,
         handleAddKnowledgeIdClick,
+        handleAddMcpClick,
         registerKnowledgeModal,
+        registerMcpModal,
         knowledgeDataList,
+        pluginDataList,
+        plugins,
         knowledge,
         handleSuccess,
+        handleMcpSuccess,
         handleDeleteKnowledge,
+        handleDeleteMcp,
         uuid,
         prologueTextAreaBlur,
         prologue,
@@ -895,6 +1677,34 @@
         quickCommand,
         getFlowImage,
         metadata,
+        multiSessionChecked,
+        handleMultiSessionChange,
+        pluginIds,
+        settingsModalRef,
+        flowInputs,
+        conversationSettings,
+        hasExtraFlowInputs,
+        handleEditSettings,
+        handleSettingsOk,
+        handleModelIdChange,
+        flowDataList,
+        multiple,
+        memoryData,
+        knowledgeMultiple,
+        registerAiPromptSelectModal,
+        openPromptApps,
+        handleAddVariable,
+        handleVariablesOk,
+        registerVariablesModal,
+        variablesList,
+        generateVariablePrompt,
+        izOpenMemoryChecked,
+        memoryLoading,
+        handleMemoryChange,
+        memoryActiveKey,
+        izDrawChecked,
+        handleDrawChange,
+        handleDrawModelChange,
       };
     },
   };
@@ -997,7 +1807,7 @@
     align-content: center;
   }
   .prompt-back{
-    background-color: rgba(238,244,255,1);
+    background-color: #eef4ff;
     border-radius: 12px;
     padding: 2px;
     border: 1px solid #77B2F8;
@@ -1019,8 +1829,8 @@
     border-radius: 12px;
     padding: 2px 10px 2px 10px;
     box-sizing: border-box;
-  }  
-  
+  }
+
   .prologue-chunk-edit{
     background-color: #f2f4f7;
     border-radius: 12px;
@@ -1033,7 +1843,7 @@
   :deep(.ant-form-item-label){
     padding: 0 !important;
   }
- 
+
   :deep(.ant-form-item-required){
     margin-left: 4px !important;
   }
@@ -1052,7 +1862,7 @@
   }
   :deep(.vditor){
     border: none;
-  } 
+  }
   :deep(.vditor-sv){
     font-size: 14px;
   }
@@ -1100,8 +1910,16 @@
     }
   }
   .data-empty-text{
-    color: rgba(32,41,69,0.6);
+    color: #757c8f;
     margin-left: 10px;
+  }
+  .mcp-warning-tip {
+    display: flex;
+    align-items: center;
+    color: #fa8c16;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 500;
   }
   .flow-icon{
     width: 34px;
@@ -1123,11 +1941,11 @@
     white-space: nowrap;
     height: 20px;
     font-size: 12px;
-    color: rgba(15, 21, 40,0.82);
+    color: #3a3f4f;
   }
   .tag-input{
     align-self: center;
-    color: rgba(55,67,106,0.7);
+    color: #737c97;
     font-size: 12px;
     font-style: normal;
     font-weight: 500;

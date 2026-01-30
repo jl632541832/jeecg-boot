@@ -16,7 +16,14 @@
             </div>
           </div>
           <div class="prompt-left-textarea">
-            <div class="command">指令</div>
+            <div class="command">
+              <span style="margin-right: 5px">指令</span>
+              <a-tooltip title="提示词库">
+                <span @click="openPromptApps" style="color:#1890ff;cursor: pointer">
+                  <Icon icon="ant-design:bulb-outlined" color="#1890ff"></Icon>词库选择
+                </span>
+              </a-tooltip>
+            </div>
             <a-textarea v-model:value="prompt" :autoSize="{ minRows: 8, maxRows: 8 }"></a-textarea>
           </div>
           <a-button @click="generatedPrompt" class="prompt-left-btn" type="primary" :loading="loading">
@@ -50,17 +57,21 @@
       </div>
     </BasicModal>
   </div>
+  <!-- Ai提示词选择弹窗   -->
+  <AiAppPromptMarketModal @register="registerAiPromptSelectModal" @ok="handleAiAppPromptOk"></AiAppPromptMarketModal>
 </template>
 
 <script lang="ts">
   import { ref, unref } from 'vue';
   import BasicModal from '@/components/Modal/src/BasicModal.vue';
-  import { useModalInner } from '@/components/Modal';
+  import {useModal, useModalInner} from '@/components/Modal';
   import { promptGenerate } from '@/views/super/airag/aiapp/AiApp.api';
+  import AiAppPromptMarketModal from "@/views/super/airag/aiapp/components/AiAppPromptMarketModal.vue";
 
   export default {
     name: 'AiAppGeneratedPrompt',
     components: {
+      AiAppPromptMarketModal,
       BasicModal,
     },
     emits: ['ok', 'register'],
@@ -93,6 +104,8 @@
         linux: '你是一个linux专家，擅长解决各种linux相关的问题。',
         content: '你是一个阅读理解大师，可以阅读用户提供的文章，并提炼主要内容输出给用户。',
       });
+      //注册提示词modal
+      const [registerAiPromptSelectModal, { openModal: aiPromptSelectModalOpen }] = useModal();
       //注册modal
       const [registerModal, { closeModal, setModalProps }] = useModalInner(async (data) => {
         content.value = '';
@@ -109,23 +122,79 @@
         handleCancel();
       }
 
+      //update-begin---author:wangshuai---date:2025-04-01---for:【QQYUN-11796】【AI】提示词生成器，改成异步---
       /**
        * 生成
        */
-      function generatedPrompt() {
+      async function generatedPrompt() {
         content.value = '';
         loading.value = true;
-        promptGenerate({ prompt: prompt.value })
-          .then((res) => {
-            if (res.success) {
-              content.value = res.result;
+        let readableStream = await promptGenerate({ prompt: encodeURIComponent(prompt.value) }).catch(() => {
+            loading.value = false;
+        });
+        const reader = readableStream.getReader();
+        const decoder = new TextDecoder('UTF-8');
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          let result = decoder.decode(value, { stream: true });
+          const lines = result.split('\n\n');
+          for (const line of lines) {
+            if (line.startsWith('data:')) {
+                const content = line.replace('data:', '').trim();
+                if(!content){
+                  continue;
+                }
+                if(!content.endsWith('}')){
+                  buffer = buffer + line;
+                  continue;
+                }
+                buffer = "";
+                renderText(content)
+              } else {
+                if(!line) {
+                  continue;
+                }
+                if(!line.endsWith('}')) {
+                  buffer = buffer + line;
+                  continue;
+                }
+                buffer = "";
+                renderText(line)
+              }
             }
-            loading.value = false;
-          })
-          .catch(() => {
-            loading.value = false;
-          });
+          }
       }
+
+      /**
+       * 渲染文本
+       * 
+       * @param item
+       */
+      function renderText(item) {
+        try {
+          let parse = JSON.parse(item);
+          if (parse.event == 'MESSAGE') {
+            content.value += parse.data.message;
+            if(loading.value){
+              loading.value = false;
+            }
+          }
+          if (parse.event == 'MESSAGE_END') {
+            loading.value = false;
+          }
+          if (parse.event == 'ERROR') {
+            content.value = parse.data.message?parse.data.message:'生成失败，请稍后重试！'
+            loading.value = false;
+          }
+        } catch (error) {
+          console.log('Error parsing update:', error);
+        }
+      }
+      //update-end---author:wangshuai---date:2025-04-01---for:【QQYUN-11796】【AI】提示词生成器，改成异步---
 
       /**
        * 指令点击事件
@@ -141,6 +210,20 @@
         closeModal();
       }
 
+      /**
+       * 打开提示词库弹窗
+       */
+      function openPromptApps() {
+        aiPromptSelectModalOpen(true,{});
+      }
+      /**
+       * 提示词回调
+       *
+       * @param value
+       */
+      function handleAiAppPromptOk(value) {
+        content.value = value;
+      }
       return {
         registerModal,
         handleOk,
@@ -151,6 +234,9 @@
         loading,
         instructionsClick,
         content,
+        openPromptApps,
+        registerAiPromptSelectModal,
+        handleAiAppPromptOk,
       };
     },
   };
@@ -194,6 +280,8 @@
     .prompt-left-textarea {
       margin-top: 25px;
       .command {
+        display: flex;
+        align-items: center;
         color: #101828;
         line-height: 15px;
         font-weight: 500;

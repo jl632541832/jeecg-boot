@@ -9,7 +9,6 @@ import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.query.router.DefaultQueryRouter;
@@ -18,13 +17,17 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
+import dev.langchain4j.store.embedding.filter.Filter;
+import dev.langchain4j.store.embedding.filter.logical.And;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.tika.parser.AutoDetectParser;
 import org.jeecg.ai.factory.AiModelFactory;
 import org.jeecg.ai.factory.AiModelOptions;
 import org.jeecg.common.exception.JeecgBootException;
+import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.*;
 import org.jeecg.modules.airag.common.handler.IEmbeddingHandler;
 import org.jeecg.modules.airag.common.vo.knowledge.KnowledgeSearchResult;
@@ -35,8 +38,9 @@ import org.jeecg.modules.airag.llm.document.TikaDocumentParser;
 import org.jeecg.modules.airag.llm.entity.AiragKnowledge;
 import org.jeecg.modules.airag.llm.entity.AiragKnowledgeDoc;
 import org.jeecg.modules.airag.llm.entity.AiragModel;
+import org.jeecg.modules.airag.llm.mapper.AiragKnowledgeMapper;
+import org.jeecg.modules.airag.llm.mapper.AiragModelMapper;
 import org.jeecg.modules.airag.llm.service.IAiragKnowledgeService;
-import org.jeecg.modules.airag.llm.service.IAiragModelService;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,12 +73,14 @@ public class EmbeddingHandler implements IEmbeddingHandler {
     EmbedStoreConfigBean embedStoreConfigBean;
 
     @Autowired
-    @Lazy
-    private IAiragModelService airagModelService;
+    private AiragModelMapper airagModelMapper;
 
     @Autowired
     @Lazy
     private IAiragKnowledgeService airagKnowledgeService;
+
+    @Autowired
+    private AiragKnowledgeMapper airagKnowledgeMapper;
 
     @Value(value = "${jeecg.path.upload:}")
     private String uploadpath;
@@ -93,9 +99,19 @@ public class EmbeddingHandler implements IEmbeddingHandler {
     private static final int DEFAULT_OVERLAP_SIZE = 50;
 
     /**
+     * 最大输出长度
+     */
+    private static final int DEFAULT_MAX_OUTPUT_CHARS = 4000;
+
+    /**
      * 向量存储元数据:knowledgeId
      */
     public static final String EMBED_STORE_METADATA_KNOWLEDGEID = "knowledgeId";
+
+    /**
+     * 向量存储元数据: 用户账号
+     */
+    public static final String EMBED_STORE_METADATA_USER_NAME = "username";
 
     /**
      * 向量存储元数据:docId
@@ -108,9 +124,21 @@ public class EmbeddingHandler implements IEmbeddingHandler {
     public static final String EMBED_STORE_METADATA_DOCNAME = "docName";
 
     /**
+     * 向量存储元数据：创建时间
+     */
+    public static final String EMBED_STORE_CREATE_TIME = "createTime";
+
+    /**
      * 向量存储缓存
      */
     private static final ConcurrentHashMap<String, EmbeddingStore<TextSegment>> EMBED_STORE_CACHE = new ConcurrentHashMap<>();
+
+
+    /**
+     * 正则匹配: md图片
+     * "!\\[(.*?)]\\((.*?)(\\s*=\\d+)?\\)"
+     */
+    private static final Pattern PATTERN_MD_IMAGE = Pattern.compile("!\\[(.*?)]\\((.*?)\\)");
 
     /**
      * 向量化文档
@@ -157,7 +185,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
         // 删除旧数据
         embeddingStore.removeAll(metadataKey(EMBED_STORE_METADATA_DOCID).isEqualTo(doc.getId()));
         // 分段器
-        DocumentSplitter splitter = DocumentSplitters.recursive(DEFAULT_SEGMENT_SIZE, DEFAULT_OVERLAP_SIZE, new OpenAiTokenizer());
+        DocumentSplitter splitter = DocumentSplitters.recursive(DEFAULT_SEGMENT_SIZE, DEFAULT_OVERLAP_SIZE);
         // 分段并存储
         EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
                 .documentSplitter(splitter)
@@ -166,7 +194,26 @@ public class EmbeddingHandler implements IEmbeddingHandler {
                 .build();
         Metadata metadata = Metadata.metadata(EMBED_STORE_METADATA_DOCID, doc.getId())
                 .put(EMBED_STORE_METADATA_KNOWLEDGEID, doc.getKnowledgeId())
-                .put(EMBED_STORE_METADATA_DOCNAME, FilenameUtils.getName(doc.getTitle()));
+                .put(EMBED_STORE_METADATA_DOCNAME, FilenameUtils.getName(doc.getTitle()))
+                 //初始化记忆库的时候添加创建时间选项
+                .put(EMBED_STORE_CREATE_TIME, String.valueOf(doc.getCreateTime() != null ? doc.getCreateTime().getTime() : System.currentTimeMillis()));
+        //update-begin---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
+        //添加用户名字到元数据里面，用于记忆库中数据隔离
+        String username = doc.getCreateBy();
+        if (oConvertUtils.isEmpty(username)) {
+            try {
+                HttpServletRequest request = SpringContextUtils.getHttpServletRequest();
+                String token = TokenUtils.getTokenByRequest(request);
+                username = JwtUtil.getUsername(token);
+            } catch (Exception e) {
+                // ignore：token获取不到默认为admin
+                username = "admin";
+            }
+        }
+        if (oConvertUtils.isNotEmpty(username)) {
+            metadata.put(EMBED_STORE_METADATA_USER_NAME, username);
+        }
+        //update-end---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
         Document from = Document.from(content, metadata);
         ingestor.ingest(from);
         return metadata.toMap();
@@ -183,6 +230,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
      * @author chenrui
      * @date 2025/2/18 16:52
      */
+    @Override
     public KnowledgeSearchResult embeddingSearch(List<String> knowIds, String queryText, Integer topNumber, Double similarity) {
         AssertUtils.assertNotEmpty("请选择知识库", knowIds);
         AssertUtils.assertNotEmpty("请填写查询内容", queryText);
@@ -198,16 +246,47 @@ public class EmbeddingHandler implements IEmbeddingHandler {
             }
         }
 
-        //命中的文档内容
         StringBuilder data = new StringBuilder();
-        // 对documents按score降序排序并取前topNumber个
-        List<Map<String, Object>> sortedDocuments = documents.stream()
-                .sorted(Comparator.comparingDouble((Map<String, Object> doc) -> (Double) doc.get("score")).reversed())
-                .limit(topNumber)
-                .peek(doc -> data.append(doc.get("content")).append("\n"))
+        //update-begin---author:wangshuai---date:2026-01-04---for:【QQYUN-14479】给ai的时候需要限制几个字---
+        //是否为记忆库
+        boolean memoryMode = false;
+        //记忆库只有一个
+        if (knowIds.size() == 1) {
+            String firstId = knowIds.get(0);
+            if (oConvertUtils.isNotEmpty(firstId)) {
+                AiragKnowledge k = airagKnowledgeMapper.getByIdIgnoreTenant(firstId);
+                memoryMode = (k != null && LLMConsts.KNOWLEDGE_TYPE_MEMORY.equalsIgnoreCase(k.getType()));
+            }
+        }
+        //如果是记忆库按照创建时间排序，如果不是按照score分值进行排序
+        List<Map<String, Object>> prepared = documents.stream()
+                .sorted(memoryMode
+                        ? Comparator.comparingLong((Map<String, Object> doc) -> oConvertUtils.getLong(doc.get(EMBED_STORE_CREATE_TIME), 0L)).reversed()
+                        : Comparator.comparingDouble((Map<String, Object> doc) -> (Double) doc.get("score")).reversed())
                 .collect(Collectors.toList());
-
-        return new KnowledgeSearchResult(data.toString(), sortedDocuments);
+        List<Map<String, Object>> limited = new ArrayList<>();
+        //将返回的结果按照最大的token进行长度限制
+        for (Map<String, Object> doc : prepared) {
+            if (limited.size() >= topNumber) {
+                break;
+            }
+            String content = oConvertUtils.getString(doc.get("content"), "");
+            int remain = DEFAULT_MAX_OUTPUT_CHARS - data.length();
+            if (remain <= 0) {
+                break;
+            }
+            //数据库中文本的长度和已经拼接的长度
+            if (content.length() <= remain) {
+                data.append(content).append("\n");
+                limited.add(doc);
+            } else {
+                data.append(content, 0, remain);
+                limited.add(doc);
+                break;
+            }
+        }
+        return new KnowledgeSearchResult(data.toString(), limited);
+        //update-end---author:wangshuai---date:2026-01-04---for:【QQYUN-14479】给ai的时候需要限制几个字---
     }
 
     /**
@@ -223,7 +302,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
      */
     public List<Map<String, Object>> searchEmbedding(String knowId, String queryText, Integer topNumber, Double similarity) {
         AssertUtils.assertNotEmpty("请选择知识库", knowId);
-        AiragKnowledge knowledge = airagKnowledgeService.getById(knowId);
+        AiragKnowledge knowledge = airagKnowledgeMapper.getByIdIgnoreTenant(knowId);
         AssertUtils.assertNotEmpty("知识库不存在", knowledge);
         AssertUtils.assertNotEmpty("请填写查询内容", queryText);
         AiragModel model = getEmbedModelData(knowledge.getEmbedId());
@@ -234,11 +313,31 @@ public class EmbeddingHandler implements IEmbeddingHandler {
 
         topNumber = oConvertUtils.getInteger(topNumber, modelOp.getTopNumber());
         similarity = oConvertUtils.getDou(similarity, modelOp.getSimilarity());
+        
+        //update-begin---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
+        Filter filter = metadataKey(EMBED_STORE_METADATA_KNOWLEDGEID).isEqualTo(knowId);
+
+        // 记忆库的时候需要根据用户隔离
+        if (LLMConsts.KNOWLEDGE_TYPE_MEMORY.equalsIgnoreCase(knowledge.getType())) {
+            try {
+                HttpServletRequest request = SpringContextUtils.getHttpServletRequest();
+                String token = TokenUtils.getTokenByRequest(request);
+                String username = JwtUtil.getUsername(token);
+                if (oConvertUtils.isNotEmpty(username)) {
+                    filter = new And(filter, metadataKey(EMBED_STORE_METADATA_USER_NAME).isEqualTo(username));
+                }
+            } catch (Exception e) {
+                // ignore
+                log.info("构建过滤器异常,{}",e.getMessage());
+            }
+        }
+        //update-end---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
+        
         EmbeddingSearchRequest embeddingSearchRequest = EmbeddingSearchRequest.builder()
                 .queryEmbedding(queryEmbedding)
                 .maxResults(topNumber)
                 .minScore(similarity)
-                .filter(metadataKey(EMBED_STORE_METADATA_KNOWLEDGEID).isEqualTo(knowId))
+                .filter(filter)
                 .build();
 
         EmbeddingStore<TextSegment> embeddingStore = getEmbedStore(model);
@@ -252,6 +351,9 @@ public class EmbeddingHandler implements IEmbeddingHandler {
                 Metadata metadata = matchRes.embedded().metadata();
                 data.put("chunk", metadata.getInteger("index"));
                 data.put(EMBED_STORE_METADATA_DOCNAME, metadata.getString(EMBED_STORE_METADATA_DOCNAME));
+                //查询返回的时候增加创建时间，用于排序
+                String ct = metadata.getString(EMBED_STORE_CREATE_TIME);
+                data.put(EMBED_STORE_CREATE_TIME, ct);
                 return data;
             }).collect(Collectors.toList());
         }
@@ -268,6 +370,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
      * @author chenrui
      * @date 2025/2/20 21:03
      */
+    @Override
     public QueryRouter getQueryRouter(List<String> knowIds, Integer topNumber, Double similarity) {
         AssertUtils.assertNotEmpty("请选择知识库", knowIds);
         List<ContentRetriever> retrievers = Lists.newArrayList();
@@ -275,7 +378,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
             if (oConvertUtils.isEmpty(knowId)) {
                 continue;
             }
-            AiragKnowledge knowledge = airagKnowledgeService.getById(knowId);
+            AiragKnowledge knowledge = airagKnowledgeMapper.getByIdIgnoreTenant(knowId);
             AssertUtils.assertNotEmpty("知识库不存在", knowledge);
             AiragModel model = getEmbedModelData(knowledge.getEmbedId());
             AiModelOptions modelOptions = buildModelOptions(model);
@@ -284,13 +387,32 @@ public class EmbeddingHandler implements IEmbeddingHandler {
             EmbeddingStore<TextSegment> embeddingStore = getEmbedStore(model);
             topNumber = oConvertUtils.getInteger(topNumber, 5);
             similarity = oConvertUtils.getDou(similarity, 0.75);
+
+            //update-begin---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
+            Filter filter = metadataKey(EMBED_STORE_METADATA_KNOWLEDGEID).isEqualTo(knowId);
+            // 记忆库的时候需要根据用户隔离
+            if (LLMConsts.KNOWLEDGE_TYPE_MEMORY.equalsIgnoreCase(knowledge.getType())) {
+                try {
+                    HttpServletRequest request = SpringContextUtils.getHttpServletRequest();
+                    String token = TokenUtils.getTokenByRequest(request);
+                    String username = JwtUtil.getUsername(token);
+                    if (oConvertUtils.isNotEmpty(username)) {
+                        filter = new And(filter, metadataKey(EMBED_STORE_METADATA_USER_NAME).isEqualTo(username));
+                    }
+                } catch (Exception e) {
+                    // ignore
+                    log.info("构建过滤器异常,{}",e.getMessage());
+                }
+            }
+            //update-end---author:wangshuai---date:2025-12-26---for:【QQYUN-14265】【AI】支持记忆---
+            
             // 构建一个嵌入存储内容检索器，用于从嵌入存储中检索内容
             EmbeddingStoreContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
                     .embeddingStore(embeddingStore)
                     .embeddingModel(embeddingModel)
                     .maxResults(topNumber)
                     .minScore(similarity)
-                    .filter(metadataKey(EMBED_STORE_METADATA_KNOWLEDGEID).isEqualTo(knowId))
+                    .filter(filter)
                     .build();
             retrievers.add(contentRetriever);
         }
@@ -345,7 +467,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
      */
     private AiragModel getEmbedModelData(String modelId) {
         AssertUtils.assertNotEmpty("向量模型不能为空", modelId);
-        AiragModel model = airagModelService.getById(modelId);
+        AiragModel model = airagModelMapper.getByIdIgnoreTenant(modelId);
         AssertUtils.assertNotEmpty("向量模型不存在", model);
         AssertUtils.assertEquals("仅支持向量模型", LLMConsts.MODEL_TYPE_EMBED, model.getModelType());
         return model;
@@ -371,6 +493,18 @@ public class EmbeddingHandler implements IEmbeddingHandler {
 
         AiModelOptions modelOp = buildModelOptions(model);
         EmbeddingModel embeddingModel = AiModelFactory.createEmbeddingModel(modelOp);
+
+        String tableName = embedStoreConfigBean.getTable();
+
+        // update-begin---author:sunjianlei ---date:20250509  for：【QQYUN-12345】向量模型维度不一致问题
+        // 如果该模型不是默认的向量维度
+        int dimension = embeddingModel.dimension();
+        if (!LLMConsts.EMBED_MODEL_DEFAULT_DIMENSION.equals(dimension)) {
+            // 就加上维度后缀，防止因维度不一致导致保存失败
+            tableName += ("_" + dimension);
+        }
+        // update-end-----author:sunjianlei ---date:20250509  for：【QQYUN-12345】向量模型维度不一致问题
+
         EmbeddingStore<TextSegment> embeddingStore = PgVectorEmbeddingStore.builder()
                 // Connection and table parameters
                 .host(embedStoreConfigBean.getHost())
@@ -378,7 +512,7 @@ public class EmbeddingHandler implements IEmbeddingHandler {
                 .database(embedStoreConfigBean.getDatabase())
                 .user(embedStoreConfigBean.getUser())
                 .password(embedStoreConfigBean.getPassword())
-                .table(embedStoreConfigBean.getTable())
+                .table(tableName)
                 // Embedding dimension
                 // Required: Must match the embedding model’s output dimension
                 .dimension(embeddingModel.dimension())
@@ -449,16 +583,20 @@ public class EmbeddingHandler implements IEmbeddingHandler {
                 String fileType = FilenameUtils.getExtension(docFile.getName());
                 if ("md".contains(fileType)) {
                     // 如果是md文件，查找所有图片语法，如果是本地图片，替换成网络图片
-                    String baseUrl = doc.getBaseUrl() + "/sys/common/static/";
+                    String baseUrl = "#{domainURL}/sys/common/static/";
                     String sourcePath = metadataJson.getString(LLMConsts.KNOWLEDGE_DOC_METADATA_SOURCES_PATH);
                     if(oConvertUtils.isNotEmpty(sourcePath)) {
                         String escapedPath = uploadpath;
-                        if (File.separator.equals("\\")){
+                        //update-begin---author:wangshuai---date:2025-06-03---for:【QQYUN-12636】【AI知识库】文档库上传 本地local 文档中的图片不展示---
+                        /*if (File.separator.equals("\\")){
                             escapedPath = uploadpath.replace("//", "\\\\");
-                        }
+                        }*/
+                        //update-end---author:wangshuai---date:2025-06-03---for:【QQYUN-12636】【AI知识库】文档库上传 本地local 文档中的图片不展示---
                         sourcePath = sourcePath.replaceFirst("^" + escapedPath, "").replace("\\", "/");
-                        baseUrl = baseUrl + sourcePath + "/";
-                        StringBuffer sb = replaceImageUrl(content, baseUrl);
+                        String docFilePath = metadataJson.getString(LLMConsts.KNOWLEDGE_DOC_METADATA_FILEPATH);
+                        docFilePath = FilenameUtils.getPath(docFilePath);
+                        docFilePath = docFilePath.replace("\\", "/");
+                        StringBuffer sb = replaceImageUrl(content, baseUrl + sourcePath + "/", baseUrl + docFilePath);
                         content = sb.toString();
                     }
                 }
@@ -469,11 +607,9 @@ public class EmbeddingHandler implements IEmbeddingHandler {
     }
 
     @NotNull
-    private static StringBuffer replaceImageUrl(String content, String baseUrl) {
+    private static StringBuffer replaceImageUrl(String content, String abstractBaseUrl, String relativeBaseUrl) {
         // 正则表达式匹配md文件中的图片语法 ![alt text](image url)
-        String mdImagePattern = "!\\[(.*?)]\\((.*?)(\\s*=\\d+)?\\)";
-        Pattern pattern = Pattern.compile(mdImagePattern);
-        Matcher matcher = pattern.matcher(content);
+        Matcher matcher = PATTERN_MD_IMAGE.matcher(content);
 
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
@@ -481,7 +617,16 @@ public class EmbeddingHandler implements IEmbeddingHandler {
             // 检查是否是本地图片路径
             if (!imageUrl.startsWith("http")) {
                 // 替换成网络图片路径
-                String networkImageUrl = baseUrl + imageUrl;
+                String networkImageUrl = abstractBaseUrl + imageUrl;
+                if(imageUrl.startsWith("/")) {
+                    // 绝对路径
+                    networkImageUrl = abstractBaseUrl + imageUrl;
+                }else{
+                    // 相对路径
+                    networkImageUrl = relativeBaseUrl + imageUrl;
+                }
+                // 修改图片路径中//->/，但保留http://和https://
+                networkImageUrl = networkImageUrl.replaceAll("(?<!http:)(?<!https:)//", "/");
                 matcher.appendReplacement(sb, "![" + matcher.group(1) + "](" + networkImageUrl + ")");
             } else {
                 matcher.appendReplacement(sb, "![" + matcher.group(1) + "](" + imageUrl + ")");

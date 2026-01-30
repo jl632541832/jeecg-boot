@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jeecg.common.constant.CommonConstant;
 import org.jeecg.common.constant.SymbolConstant;
 import org.jeecg.common.exception.JeecgSqlInjectionException;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -336,13 +335,12 @@ public class SqlInjectionUtil {
 			return table;
 		}
 
-		//update-begin---author:scott ---date:2024-05-28  for：表单设计器列表翻译存在表名带条件，导致翻译出问题----
+		// 代码逻辑说明: 表单设计器列表翻译存在表名带条件，导致翻译出问题----
 		int index = table.toLowerCase().indexOf(" where ");
 		if (index != -1) {
 			table = table.substring(0, index);
 			log.info("截掉where之后的新表名：" + table);
 		}
-		//update-end---author:scott ---date::2024-05-28  for：表单设计器列表翻译存在表名带条件，导致翻译出问题----
 
 		table = table.trim();
 		/**

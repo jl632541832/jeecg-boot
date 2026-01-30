@@ -41,7 +41,11 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
     serverOptions.origin = VITE_GLOB_QIANKUN_MICRO_APP_ENTRY!.split('/').slice(0, 3).join('/');
   }
   // ----- [end] 【JEECG作为乾坤子应用】 -----
-
+  
+  console.log('[init] Start Port: ', VITE_PORT);
+  console.debug('[init] Vite Proxy Config: ', VITE_PROXY);
+  
+  
   return {
     base: isQiankunMicro ? VITE_GLOB_QIANKUN_MICRO_APP_ENTRY : VITE_PUBLIC_PATH,
     root,
@@ -141,6 +145,8 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
         '@jeecg/online',
         '@jeecg/aiflow',
       ],
+      // 强制预构建clipboard，解决Vite6对CommonJS模块的严格检查
+      include: ['clipboard']
     },
   };
 };

@@ -1,18 +1,30 @@
 package org.jeecg.modules.airag.llm.handler;
 
 import com.alibaba.fastjson.JSONObject;
+import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.*;
+import dev.langchain4j.exception.InvalidRequestException;
+import dev.langchain4j.exception.ToolExecutionException;
+import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.rag.query.router.QueryRouter;
 import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.service.tool.ToolExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.jeecg.ai.handler.LLMHandler;
+import org.jeecg.common.exception.JeecgBootException;
 import org.jeecg.common.util.AssertUtils;
+import org.jeecg.common.util.filter.SsrfFileTypeFilter;
 import org.jeecg.common.util.oConvertUtils;
+import org.jeecg.modules.airag.common.consts.AiragConsts;
 import org.jeecg.modules.airag.common.handler.AIChatParams;
 import org.jeecg.modules.airag.common.handler.IAIChatHandler;
+import org.jeecg.modules.airag.common.handler.McpToolProviderWrapper;
 import org.jeecg.modules.airag.llm.consts.LLMConsts;
+import org.jeecg.modules.airag.llm.entity.AiragMcp;
 import org.jeecg.modules.airag.llm.entity.AiragModel;
-import org.jeecg.modules.airag.llm.service.IAiragModelService;
+import org.jeecg.modules.airag.llm.mapper.AiragMcpMapper;
+import org.jeecg.modules.airag.llm.mapper.AiragModelMapper;
+import org.jeecg.config.AiRagConfigBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -22,10 +34,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 /**
  * 大模型聊天工具类
@@ -38,7 +49,10 @@ import java.util.regex.Matcher;
 public class AIChatHandler implements IAIChatHandler {
 
     @Autowired
-    IAiragModelService airagModelService;
+    AiragModelMapper airagModelMapper;
+
+    @Autowired
+    AiragMcpMapper airagMcpMapper;
 
     @Autowired
     EmbeddingHandler embeddingHandler;
@@ -46,6 +60,8 @@ public class AIChatHandler implements IAIChatHandler {
     @Autowired
     LLMHandler llmHandler;
 
+    @Autowired
+    AiRagConfigBean aiRagConfigBean;
 
     @Value(value = "${jeecg.path.upload:}")
     private String uploadpath;
@@ -82,7 +98,8 @@ public class AIChatHandler implements IAIChatHandler {
         AssertUtils.assertNotEmpty("至少发送一条消息", messages);
         AssertUtils.assertNotEmpty("请选择模型", modelId);
 
-        AiragModel airagModel = airagModelService.getById(modelId);
+        AiragModel airagModel = airagModelMapper.getByIdIgnoreTenant(modelId);
+        AssertUtils.assertSame("模型未激活,请先在[AI模型配置]中[测试激活]模型", airagModel.getActivateFlag(), 1);
         return completions(airagModel, messages, params);
     }
 
@@ -96,9 +113,40 @@ public class AIChatHandler implements IAIChatHandler {
      * @author chenrui
      * @date 2025/2/24 17:30
      */
-    private String completions(AiragModel airagModel, List<ChatMessage> messages, AIChatParams params) {
+    public String completions(AiragModel airagModel, List<ChatMessage> messages, AIChatParams params) {
         params = mergeParams(airagModel, params);
-        String resp = llmHandler.completions(messages, params);
+        String resp;
+        try {
+            resp = llmHandler.completions(messages, params);
+        } catch (ToolExecutionException | InvalidRequestException e) {
+            log.error(e.getMessage(), e);
+            return "";
+        } catch (Exception e) {
+            // langchain4j 异常友好提示
+            String errMsg = "调用大模型接口失败，详情请查看后台日志。";
+            if (oConvertUtils.isNotEmpty(e.getMessage())) {
+                String exceptionMsg = e.getMessage();
+                
+                // 检查是否是工具调用消息序列不完整的异常
+                if (exceptionMsg.contains("messages with role 'tool' must be a response to a preceeding message with 'tool_calls'")) {
+                    errMsg = "消息序列不完整，可能是因为历史消息数量设置过小导致工具调用上下文丢失。建议增加历史消息数量后重试。";
+                    log.error("AI模型调用异常: 工具调用消息序列不完整，建议增加历史消息数量。异常详情: {}", exceptionMsg, e);
+                    throw new JeecgBootException(errMsg);
+                }
+                
+                // 根据常见异常关键字做细致翻译
+                for (Map.Entry<String, String> entry : MODEL_ERROR_MAP.entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    if (exceptionMsg.contains(key)) {
+                        errMsg = value;
+                        break;
+                    }
+                }
+            }
+            log.error("AI模型调用异常: {}", errMsg, e);
+            throw new JeecgBootException(errMsg);
+        }
         if (resp.contains("</think>")
                 && (null == params.getNoThinking() || params.getNoThinking())) {
             String[] thinkSplit = resp.split("</think>");
@@ -150,7 +198,8 @@ public class AIChatHandler implements IAIChatHandler {
         AssertUtils.assertNotEmpty("至少发送一条消息", messages);
         AssertUtils.assertNotEmpty("请选择模型", modelId);
 
-        AiragModel airagModel = airagModelService.getById(modelId);
+        AiragModel airagModel = airagModelMapper.getByIdIgnoreTenant(modelId);
+        AssertUtils.assertSame("模型未激活,请先在[AI模型配置]中[测试激活]模型", airagModel.getActivateFlag(), 1);
         return chat(airagModel, messages, params);
     }
 
@@ -226,7 +275,10 @@ public class AIChatHandler implements IAIChatHandler {
                 params.setMaxTokens(modelParams.getInteger("maxTokens"));
             }
             if (oConvertUtils.isObjectEmpty(params.getTimeout())) {
-                params.setMaxTokens(modelParams.getInteger("timeout"));
+                params.setTimeout(modelParams.getInteger("timeout"));
+            }
+            if (oConvertUtils.isObjectEmpty(params.getEnableSearch())) {
+                params.setEnableSearch(modelParams.getBoolean("enableSearch"));
             }
         }
 
@@ -237,7 +289,96 @@ public class AIChatHandler implements IAIChatHandler {
             params.setQueryRouter(queryRouter);
         }
 
+        // 设置确保maxTokens值正确
+        if (oConvertUtils.isObjectNotEmpty(params.getMaxTokens()) && params.getMaxTokens() <= 0) {
+            params.setMaxTokens(null);
+        }
+
+        // 默认超时时间
+        if(oConvertUtils.isObjectEmpty(params.getTimeout())){
+            params.setTimeout(AiragConsts.DEFAULT_TIMEOUT);
+        }
+
+        //deepseek-reasoner 推理模型不支持插件tool
+        String modelName = airagModel.getModelName();
+        if(!LLMConsts.DEEPSEEK_REASONER.equals(modelName)){
+            // 插件/MCP处理
+            buildPlugins(params);
+        }
+
         return params;
+    }
+
+    /**
+     * 构造插件和MCP工具
+     * for [QQYUN-12453]【AI】支持插件
+     * for [QQYUN-9234] MCP服务连接关闭 - 使用包装器保存连接引用
+     * @param params
+     * @author chenrui
+     * @date 2025/10/31 14:04
+     */
+    private void buildPlugins(AIChatParams params) {
+        List<String> pluginIds = params.getPluginIds();
+
+        if(oConvertUtils.isObjectNotEmpty(pluginIds)){
+            List<McpToolProvider> mcpToolProviders = new ArrayList<>();
+            List<McpToolProviderWrapper> mcpToolProviderWrappers = new ArrayList<>();
+            Map<ToolSpecification, ToolExecutor> pluginTools = new HashMap<>();
+
+            for (String pluginId : pluginIds.stream().distinct().collect(Collectors.toList())) {
+                AiragMcp airagMcp = airagMcpMapper.selectById(pluginId);
+                if (airagMcp == null) {
+                    continue;
+                }
+
+                String category = airagMcp.getCategory();
+                if (oConvertUtils.isEmpty(category)) {
+                    // 兼容旧数据：如果没有category字段，默认为mcp
+                    category = "mcp";
+                }
+
+                if ("mcp".equalsIgnoreCase(category)) {
+                    // MCP类型：构建McpToolProviderWrapper（包含连接引用用于后续关闭）
+                    // for [QQYUN-9234] MCP服务连接关闭
+                    McpToolProviderWrapper wrapper = buildMcpToolProviderWrapper(
+                            airagMcp.getName(),
+                            airagMcp.getType(),
+                            airagMcp.getEndpoint(),
+                            airagMcp.getHeaders(),
+                            aiRagConfigBean.getAllowSensitiveNodes()
+                    );
+                    if (wrapper != null) {
+                        mcpToolProviders.add(wrapper.getMcpToolProvider());
+                        mcpToolProviderWrappers.add(wrapper);
+                    }
+                } else if ("plugin".equalsIgnoreCase(category)) {
+                    // 插件类型：构建ToolSpecification和ToolExecutor
+                    Map<ToolSpecification, ToolExecutor> tools = PluginToolBuilder.buildTools(airagMcp, params.getCurrentHttpRequest());
+                    if (tools != null && !tools.isEmpty()) {
+                        pluginTools.putAll(tools);
+                    }
+                }
+            }
+
+            // 设置MCP工具提供者
+            if (!mcpToolProviders.isEmpty()) {
+                params.setMcpToolProviders(mcpToolProviders);
+            }
+            
+            // 保存MCP连接包装器，用于后续关闭
+            // for [QQYUN-9234] MCP服务连接关闭
+            if (!mcpToolProviderWrappers.isEmpty()) {
+                params.setMcpToolProviderWrappers(mcpToolProviderWrappers);
+            }
+
+            // 设置插件工具
+            if (!pluginTools.isEmpty()) {
+                if (params.getTools() == null) {
+                    params.setTools(new HashMap<>());
+                }
+                params.getTools().putAll(pluginTools);
+            }
+        }
     }
 
     @Override
@@ -266,6 +407,7 @@ public class AIChatHandler implements IAIChatHandler {
                 String filePath = uploadpath + File.separator + imageUrl;
                 // 读取文件并转换为 base64 编码字符串
                 try {
+                    SsrfFileTypeFilter.checkPathTraversal(filePath);
                     Path path = Paths.get(filePath);
                     byte[] fileContent = Files.readAllBytes(path);
                     String base64Data = Base64.getEncoder().encodeToString(fileContent);
@@ -274,7 +416,7 @@ public class AIChatHandler implements IAIChatHandler {
                     // 构建 ImageContent 对象
                     imageContents.add(ImageContent.from(base64Data, mimeType));
                 } catch (IOException e) {
-                    log.error("读取文件失败: " + filePath, e);
+                    log.error("读取文件失败: {}", imageUrl, e);
                     throw new RuntimeException("发送消息失败,读取文件异常:" + e.getMessage(), e);
                 }
             }
@@ -282,5 +424,130 @@ public class AIChatHandler implements IAIChatHandler {
         return imageContents;
     }
 
+    //================================================= begin【QQYUN-12145】【AI】AI 绘画创作 ========================================
+    /**
+     * 文本生成图片
+     * @param modelId
+     * @param messages
+     * @param params
+     * @return
+     */
+    @Override
+    public List<Map<String, Object>> imageGenerate(String modelId, String messages, AIChatParams params) {
+        AssertUtils.assertNotEmpty("至少发送一条消息", messages);
+        AssertUtils.assertNotEmpty("请选择图片大模型", modelId);
+        AiragModel airagModel = airagModelMapper.getByIdIgnoreTenant(modelId);
+        return this.imageGenerate(airagModel, messages, params);
+    }
 
+    /**
+     * 文本生成图片
+     *
+     * @param airagModel
+     * @param messages
+     * @param params
+     * @return
+     */
+    public List<Map<String, Object>> imageGenerate(AiragModel airagModel, String messages, AIChatParams params) {
+        params = mergeParams(airagModel, params);
+        try {
+            return llmHandler.imageGenerate(messages, params);
+        } catch (Exception e) {
+            String errMsg = "调用绘画AI接口失败，详情请查看后台日志。";
+            if (oConvertUtils.isNotEmpty(e.getMessage())) {
+                // 根据常见异常关键字做细致翻译
+                for (Map.Entry<String, String> entry : MODEL_ERROR_MAP.entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    if (e.getMessage().contains(key)) {
+                        errMsg = value;
+                        break;
+                    }
+                }
+            }
+            log.error("AI模型调用异常: {}", errMsg, e);
+            throw new JeecgBootException(errMsg);
+        }
+    }
+
+
+    /**
+     * 图生图
+     * 
+     * @param modelId
+     * @param messages
+     * @param images
+     * @param params
+     * @return
+     */
+    @Override
+    public List<Map<String, Object>> imageEdit(String modelId, String messages, List<String> images, AIChatParams params) {
+        AiragModel airagModel = airagModelMapper.getByIdIgnoreTenant(modelId);
+        params = mergeParams(airagModel, params);
+        List<String> originalImageBase64List = getFirstImageBase64(images);
+        try {
+            return llmHandler.imageEdit(messages, originalImageBase64List, params);
+        } catch (Exception e) {
+            String errMsg = "调用绘画AI接口失败，详情请查看后台日志。";
+            if (oConvertUtils.isNotEmpty(e.getMessage())) {
+                // 根据常见异常关键字做细致翻译
+                for (Map.Entry<String, String> entry : MODEL_ERROR_MAP.entrySet()) {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    if (errMsg.contains(key)) {
+                        errMsg = value;
+                        break;
+                    }
+                }
+            }
+            log.error("AI模型调用异常: {}", errMsg, e);
+            throw new JeecgBootException(errMsg);
+        }
+    }
+
+    /**
+     * 需要将图片转换成Base64编码
+     * @param images 图片路径列表
+     * @return Base64编码字符串
+     */
+    private List<String> getFirstImageBase64(List<String> images) {
+        List<String> originalImageBase64List = new ArrayList<>();
+        if (images != null && !images.isEmpty()) {
+            for (String imageUrl : images) {
+                Matcher matcher = LLMConsts.WEB_PATTERN.matcher(imageUrl);
+                try {
+                    byte[] fileContent;
+                    if (matcher.matches()) {
+                        // 来源于网络
+                        java.net.URL url = new java.net.URL(imageUrl);
+                        java.net.URLConnection conn = url.openConnection();
+                        conn.setConnectTimeout(5000);
+                        conn.setReadTimeout(10000);
+                        try (java.io.InputStream in = conn.getInputStream()) {
+                            java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                            int nRead;
+                            byte[] data = new byte[1024];
+                            while ((nRead = in.read(data, 0, data.length)) != -1) {
+                                buffer.write(data, 0, nRead);
+                            }
+                            buffer.flush();
+                            fileContent = buffer.toByteArray();
+                        }
+                    } else {
+                        // 本地文件
+                        String filePath = uploadpath + File.separator + imageUrl;
+                        SsrfFileTypeFilter.checkPathTraversal(filePath);
+                        Path path = Paths.get(filePath);
+                        fileContent = Files.readAllBytes(path);
+                    }
+                    originalImageBase64List.add(Base64.getEncoder().encodeToString(fileContent));
+                } catch (Exception e) {
+                    log.error("图片读取失败: {}", imageUrl, e);
+                    throw new JeecgBootException("图片读取失败: " + imageUrl);
+                }
+            }
+        }
+        return originalImageBase64List;
+    }
+    //================================================= end 【QQYUN-12145】【AI】AI 绘画创作 ========================================
 }

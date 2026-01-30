@@ -40,7 +40,7 @@ export const formSchema: FormSchema[] = [
     required: true,
     component: 'JDictSelectTag',
     componentProps: {
-      dictCode: "airag_model where model_type = 'EMBED',name,id",
+      dictCode: "airag_model where model_type = 'EMBED' and activate_flag = 1,name,id",
     },
   },
   {
@@ -57,6 +57,20 @@ export const formSchema: FormSchema[] = [
     },
     defaultValue: 'enable',
   },
+  {
+    label: '类型',
+    field: 'type',
+    required: true,
+    component: 'JDictSelectTag',
+    componentProps: {
+      options: [
+        { label: '知识库', value: 'knowledge' },
+        { label: '记忆库', value: 'memory' },
+      ],
+      type: 'radioButton',
+    },
+    defaultValue: 'knowledge',
+  },  
 ];
 
 //文档文本表单

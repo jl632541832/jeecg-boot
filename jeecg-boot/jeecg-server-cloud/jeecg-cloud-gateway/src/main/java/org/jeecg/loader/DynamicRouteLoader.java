@@ -9,9 +9,10 @@ import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.listener.Listener;
 import com.alibaba.nacos.api.exception.NacosException;
-import com.alibaba.nacos.common.utils.StringUtils;
 import com.alibaba.nacos.shaded.com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jeecg.common.base.BaseMap;
 import org.jeecg.common.constant.CacheConstant;
 import org.jeecg.common.util.RedisUtil;
@@ -31,7 +32,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -170,9 +170,9 @@ public class DynamicRouteLoader implements ApplicationEventPublisherAware {
                 dynamicRouteService.add(definition);
             }
         }
-        if(!ObjectUtils.isEmpty(baseMap)){
+        if(ObjectUtils.isNotEmpty(baseMap)){
             String delRouterId = baseMap.get("delRouterId");
-            if (!ObjectUtils.isEmpty(delRouterId)) {
+            if (ObjectUtils.isNotEmpty(delRouterId)) {
                 dynamicRouteService.delete(delRouterId);
             }
         }
@@ -205,7 +205,7 @@ public class DynamicRouteLoader implements ApplicationEventPublisherAware {
             }
             Object predicates = obj.get("predicates");
             if (predicates != null) {
-                //update-begin-author:liusq---date:2023-10-15--for: [issues/5331]网关路由配置问题
+                // 代码逻辑说明: [issues/5331]网关路由配置问题
                 List<PredicatesVo> list = JSON.parseArray(predicates.toString(), PredicatesVo.class);
                 //获取合并后的Predicates，防止配置多个path导致路径失效的问题
                 Map<String, List<String>> groupedPredicates = new HashMap<>();
@@ -221,12 +221,11 @@ public class DynamicRouteLoader implements ApplicationEventPublisherAware {
                     List<String> args = entry.getValue();
                     list.add(new PredicatesVo(name, args));
                 }
-                //update-end-author:liusq---date:2023-10-15--for:[issues/5331]网关路由配置问题
                 List<PredicateDefinition> predicateDefinitionList = new ArrayList<>();
                 for (Object map : list) {
                     JSONObject json = JSON.parseObject(JSON.toJSONString(map));
                     PredicateDefinition predicateDefinition = new PredicateDefinition();
-                    //update-begin-author:zyf date:20220419 for:【VUEN-762】路由条件添加异常问题,原因是部分路由条件参数需要设置固定key
+                    // 代码逻辑说明: 【VUEN-762】路由条件添加异常问题,原因是部分路由条件参数需要设置固定key
                     String name=json.getString("name");
                     predicateDefinition.setName(name);
                     //路由条件是否拼接Key
@@ -246,7 +245,6 @@ public class DynamicRouteLoader implements ApplicationEventPublisherAware {
                             }
                         }
                     }
-                    //update-end-author:zyf date:20220419 for:【VUEN-762】路由条件添加异常问题,原因是部分路由条件参数需要设置固定key
                     predicateDefinitionList.add(predicateDefinition);
                 }
                 route.setPredicates(predicateDefinitionList);

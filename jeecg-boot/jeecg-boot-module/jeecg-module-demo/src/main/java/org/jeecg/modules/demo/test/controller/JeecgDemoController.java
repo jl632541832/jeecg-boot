@@ -4,8 +4,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,8 +29,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import reactor.core.publisher.Mono;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -64,9 +62,9 @@ public class JeecgDemoController extends JeecgController<JeecgDemo, IJeecgDemoSe
      * @param req
      * @return
      */
-    @Operation(summary = "获取所有Demo数据列表")
+    @Operation(summary = "获取Demo数据列表")
     @GetMapping(value = "/list")
-    @PermissionData(pageComponent = "jeecg/JeecgDemoList")
+    @PermissionData(pageComponent = "system/examples/demo/index")
     public Result<?> list(JeecgDemo jeecgDemo, @RequestParam(name = "pageNo", defaultValue = "1") Integer pageNo, @RequestParam(name = "pageSize", defaultValue = "10") Integer pageSize,
                           HttpServletRequest req) {
         QueryWrapper<JeecgDemo> queryWrapper = QueryGenerator.initQueryWrapper(jeecgDemo, req.getParameterMap());
@@ -74,10 +72,10 @@ public class JeecgDemoController extends JeecgController<JeecgDemo, IJeecgDemoSe
         Page<JeecgDemo> page = new Page<JeecgDemo>(pageNo, pageSize);
 
         IPage<JeecgDemo> pageList = jeecgDemoService.page(page, queryWrapper);
-        log.info("查询当前页：" + pageList.getCurrent());
-        log.info("查询当前页数量：" + pageList.getSize());
-        log.info("查询结果数量：" + pageList.getRecords().size());
-        log.info("数据总数：" + pageList.getTotal());
+        log.debug("查询当前页：" + pageList.getCurrent());
+        log.debug("查询当前页数量：" + pageList.getSize()); 
+        log.debug("查询结果数量：" + pageList.getRecords().size());
+        log.debug("数据总数：" + pageList.getTotal());
         return Result.OK(pageList);
     }
 
@@ -477,7 +475,6 @@ public class JeecgDemoController extends JeecgController<JeecgDemo, IJeecgDemoSe
      * 测试Mono对象
      * @return
      */
-    @Operation(summary = "Mono测试")
     @GetMapping(value ="/test")
     public Mono<String> test() {
         //解决shiro报错No SecurityManager accessible to the calling code, either bound to the org.apache.shiro

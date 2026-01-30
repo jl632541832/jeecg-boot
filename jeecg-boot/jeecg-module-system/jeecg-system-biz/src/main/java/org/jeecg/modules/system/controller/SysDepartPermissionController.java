@@ -2,14 +2,11 @@ package org.jeecg.modules.system.controller;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.shiro.SecurityUtils;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.constant.CommonConstant;
@@ -36,6 +33,8 @@ import org.jeecg.modules.system.service.ISysPermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 
  /**
  * @Description: 部门权限表
@@ -72,7 +71,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param req
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-分页列表查询")
+	@Operation(summary="部门权限表-分页列表查询")
 	@GetMapping(value = "/list")
 	public Result<?> queryPageList(SysDepartPermission sysDepartPermission,
 								   @RequestParam(name="pageNo", defaultValue="1") Integer pageNo,
@@ -90,7 +89,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param sysDepartPermission
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-添加")
+	@Operation(summary="部门权限表-添加")
 	@PostMapping(value = "/add")
 	public Result<?> add(@RequestBody SysDepartPermission sysDepartPermission) {
 		sysDepartPermissionService.save(sysDepartPermission);
@@ -103,7 +102,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param sysDepartPermission
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-编辑")
+	@Operation(summary="部门权限表-编辑")
 	@RequestMapping(value = "/edit", method = {RequestMethod.PUT,RequestMethod.POST})
 	public Result<?> edit(@RequestBody SysDepartPermission sysDepartPermission) {
 		sysDepartPermissionService.updateById(sysDepartPermission);
@@ -116,7 +115,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param id
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-通过id删除")
+	@Operation(summary="部门权限表-通过id删除")
 	@DeleteMapping(value = "/delete")
 	public Result<?> delete(@RequestParam(name="id",required=true) String id) {
 		sysDepartPermissionService.removeById(id);
@@ -129,7 +128,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param ids
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-批量删除")
+	@Operation(summary="部门权限表-批量删除")
 	@DeleteMapping(value = "/deleteBatch")
 	public Result<?> deleteBatch(@RequestParam(name="ids",required=true) String ids) {
 		this.sysDepartPermissionService.removeByIds(Arrays.asList(ids.split(",")));
@@ -142,7 +141,7 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 	 * @param id
 	 * @return
 	 */
-	@Operation(summary ="部门权限表-通过id查询")
+	@Operation(summary="部门权限表-通过id查询")
 	@GetMapping(value = "/queryById")
 	public Result<?> queryById(@RequestParam(name="id",required=true) String id) {
 		SysDepartPermission sysDepartPermission = sysDepartPermissionService.getById(id);
@@ -260,10 +259,9 @@ public class SysDepartPermissionController extends JeecgController<SysDepartPerm
 			 String lastPermissionIds = json.getString("lastpermissionIds");
 			 this.sysDepartRolePermissionService.saveDeptRolePermission(roleId, permissionIds, lastPermissionIds);
 			 result.success("保存成功！");
-             //update-begin---author:wangshuai ---date:20220316  for：[VUEN-234]部门角色授权添加敏感日志------------
+             // 代码逻辑说明: [VUEN-234]部门角色授权添加敏感日志------------
              LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
              baseCommonService.addLog("修改部门角色ID:"+roleId+"的权限配置，操作人： " +loginUser.getUsername() ,CommonConstant.LOG_TYPE_2, 2);
-             //update-end---author:wangshuai ---date:20220316  for：[VUEN-234]部门角色授权添加敏感日志------------
              log.info("======部门角色授权成功=====耗时:" + (System.currentTimeMillis() - start) + "毫秒");
 		 } catch (Exception e) {
 			 result.error500("授权失败！");
